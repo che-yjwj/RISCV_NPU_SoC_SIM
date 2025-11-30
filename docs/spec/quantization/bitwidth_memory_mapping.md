@@ -72,13 +72,18 @@
 ```text
 bits_total  = num_elements × qbits
 bytes_total = ceil(bits_total / 8)
+```
+
 이 값이 DMA, SPM, DRAM, Bus 모델의 기본 입력이 된다.
 
-4. bitwidth → bytes 변환 규칙
-4.1 기본 공식
-text
-Copy code
+# 4. bitwidth → bytes 변환 규칙
+
+## 4.1 기본 공식
+
+```text
 bytes_total = ceil( num_elements × qbits / 8 )
+```
+
 예시
 qbits = 8, num_elements = 4096
 
@@ -92,7 +97,7 @@ bits_total = 16,384
 
 bytes_total = 2,048
 
-4.2 dtype와 qbits의 관계 (초기 버전)
+## 4.2 dtype와 qbits의 관계 (초기 버전)
 초기 시뮬레이터에서는 다음을 기본 규칙으로 사용한다.
 
 dtype	qbits 기본값	packing	설명
@@ -105,11 +110,11 @@ int2	2	없음(옵션)	0.25B per element(논리)
 int4/int2에 대해 “packed 형식”과 “unpacked 형식” 중
 어느 쪽을 사용할지는 시뮬레이터 config로 제어한다.
 
-5. Packing 모델 (옵션)
+# 5. Packing 모델 (옵션)
 실제 하드웨어에서는 int4/2의 경우 bit-level packing을 사용하는 경우가 많다.
 이를 반영하기 위한 packing factor를 정의한다.
 
-5.1 Packing Factor 정의
+## 5.1 Packing Factor 정의
 pack_factor = 8 / qbits
 
 예:
@@ -119,13 +124,15 @@ qbits=4 → pack_factor=2 (byte당 2 요소)
 qbits=2 → pack_factor=4 (byte당 4 요소)
 
 Packed bytes 계산
-text
-Copy code
+
+```text
 bytes_total_packed = ceil( num_elements / pack_factor )
+```
+
 ※ 실제 시스템에서 사용할지 여부는 config에 의해 결정
 (예: use_packed_int4 = true/false).
 
-5.2 초기 시뮬레이터 정책
+## 5.2 초기 시뮬레이터 정책
 초기 버전에서는 모델 단순화를 위해:
 
 use_packed_int4 = false
@@ -144,25 +151,26 @@ TE/VE timing 모델에서 macs_per_cycle_eff 계산에도 영향을 줄 수 있�
 
 SPM capacity·bank conflict 모델에 더욱 현실적인 영향 반영 가능
 
-6. Alignment & Padding 규칙
+# 6. Alignment & Padding 규칙
 DMA, SPM, DRAM 접근은 특정 alignment를 요구한다.
 
-6.1 Alignment 기본 규칙
+## 6.1 Alignment 기본 규칙
 Tensor Metadata의 alignment_bytes 필드 사용 (tensor_metadata_spec.md 참조).
 
 DMA 경로에서:
 
-text
-Copy code
+```text
 aligned_start = floor( dram_addr / alignment_bytes ) × alignment_bytes
 aligned_end   = ceil( (dram_addr + bytes_total) / alignment_bytes ) × alignment_bytes
 bytes_aligned = aligned_end - aligned_start
+```
+
 bytes_aligned는 실제 DRAM transaction에서 사용되는 크기
 
 alignment에 의해 padding된 바이트는 유효 데이터가 아니지만,
 bandwidth / latency에는 포함된다.
 
-6.2 SPM alignment
+## 6.2 SPM alignment
 SPM도 bank·port 측면에서 alignment 제약이 있을 수 있다.
 
 spm_offset는 spm_alignment_bytes의 배수여야 한다.
@@ -170,22 +178,25 @@ spm_offset는 spm_alignment_bytes의 배수여야 한다.
 초기 버전에서는 DRAM alignment만 명시적으로 다루고,
 SPM alignment는 SPMAllocator가 보장하는 것으로 가정해도 된다.
 
-7. DRAM / SPM 용량 및 점유 모델
-7.1 DRAM 상 텐서 크기
+# 7. DRAM / SPM 용량 및 점유 모델
+
+## 7.1 DRAM 상 텐서 크기
 TensorIR 기준 DRAM 상 텐서 크기:
 
-text
-Copy code
+```text
 bytes_total_tensor = ceil( total_elements(tensor_shape) × qbits / 8 )
+```
+
 total_elements(tensor_shape)는 shape의 곱
 (예: [B, T, H] → B×T×H)
 
-7.2 Tile-level SPM 점유
+## 7.2 Tile-level SPM 점유
 TileGraph 단에서 각 타일은:
 
-text
-Copy code
+```text
 bytes_tile = ceil( tile_num_elements × qbits / 8 )
+```
+
 SPMAllocator는:
 
 각 bank의 용량 (spm_bank_size_bytes)
@@ -196,17 +207,18 @@ multi-bank 구조 (num_spm_banks)
 
 제약 조건:
 
-text
-Copy code
+```text
 Σ bytes_tile_in_bank <= spm_bank_size_bytes
+```
 넘어갈 경우:
 
 tile 크기를 줄이거나
 
 tile 분할 방식 변경 필요 (TilingPlanner와 협업)
 
-8. 역할별(bitwidth별) 메모리 특성 요약
-8.1 Activation
+# 8. 역할별(bitwidth별) 메모리 특성 요약
+
+## 8.1 Activation
 보통 int8
 
 qbits_activation = 8
@@ -215,7 +227,7 @@ DRAM traffic에 중간 정도 영향
 
 SPM에 임시 저장 후 바로 TE/VE 입력으로 사용
 
-8.2 Weight
+## 8.2 Weight
 2/4/8 bit 사용 가능 (초기 타겟: 4bit)
 
 DRAM 용량 최적화 & bandwidth 절감의 핵심 타겟
@@ -232,7 +244,7 @@ traffic 및 capacity 관점에서 가장 critical
 KV bitwidth 조정에 따른 메모리 footprint 변화가
 시뮬레이터에서 크게 드러나야 함
 
-9. DMA Timing과의 연계
+# 9. DMA Timing과의 연계
 dma_timing_spec.md 에서 DMA latency는
 bytes_aligned를 사용하여 결정된다.
 
@@ -244,14 +256,16 @@ qbits, shape, num_elements 존재
 
 bytes_total 계산
 
-text
-Copy code
+```text
 bytes_total = ceil(num_elements × qbits / 8)
+```
+
 alignment 적용
 
-text
-Copy code
+```text
 bytes_aligned = apply_alignment(bytes_total, alignment_bytes)
+```
+
 DMA timing
 
 num_bursts = ceil(bytes_aligned / bus_width)
@@ -264,7 +278,7 @@ bitwidth 변경은:
 
 간접적으로 NPU latency 및 bandwidth utilization에 영향을 준다.
 
-10. TE / VE Timing과의 연계
+# 10. TE / VE Timing과의 연계
 TE/VE timing spec에서는 bitwidth가 다음에 사용된다.
 
 TE: macs_per_cycle_eff = base × f_w(qbits_weight) × f_a(qbits_activation)
@@ -280,7 +294,7 @@ memory mapping과 결합하면 전체 성능 데이터가 나옴
 이 문서는 bitwidth가 memory 측면에서 어떤 의미를 가지는지 정의하고 있고,
 TE/VE timing spec은 bitwidth가 compute 측면에서 어떤 영향을 미치는지 정의한다.
 
-11. 예시: End-to-end bitwidth → memory mapping
+# 11. 예시: End-to-end bitwidth → memory mapping
 예시 조건
 FFN weight tile:
 
@@ -298,9 +312,9 @@ qbits_activation = 8
 
 alignment_bytes = 32
 
-11.1 Weight tile
-text
-Copy code
+## 11.1 Weight tile
+
+```text
 bits_total  = 4096 × 1024 × 4
 bytes_total = ceil(bits_total / 8)
            = 2,097,152 bytes (약 2MB)
@@ -308,21 +322,23 @@ bytes_total = ceil(bits_total / 8)
 bytes_aligned
     = align_to(bytes_total, 32)
     = 2,097,152  (이미 32의 배수라고 가정)
-11.2 Activation tile
-text
-Copy code
+```
+
+## 11.2 Activation tile
+
+```text
 bits_total  = 4096 × 8
 bytes_total = 4096
 bytes_aligned = align_to(4096, 32) = 4096  (이미 32의 배수)
+```
 DMA, SPM, DRAM, TE/VE 모델 모두 이 결과를 공유한다.
 
-12. Configuration Parameters
+# 12. Configuration Parameters
 Bitwidth & Memory Mapping 동작은 config를 통해 커스터마이즈할 수 있다.
 
-예: config/quantization_memory.yaml
+예: `config/quantization_memory.yaml`
 
-yaml
-Copy code
+```yaml
 bitwidths:
   weight: [2, 4, 8]
   activation: [4, 8]
@@ -340,7 +356,9 @@ alignment:
 spm:
   bank_size_bytes: 262144
   num_banks: 8
-13. Validation 규칙
+```
+
+# 13. Validation 규칙
 시뮬레이터/컴파일러는 bitwidth & memory 관련 다음 사항을 검증해야 한다.
 
 qbits가 지원 목록에 있는지 (예: {2,4,8,16,32})
@@ -359,7 +377,7 @@ CMDQ 또는 IR validation 단계에서 에러 리포트
 
 시뮬레이션 시작 전에 fail-fast
 
-14. 확장성 (Extensibility)
+# 14. 확장성 (Extensibility)
 향후 다음과 같은 확장을 고려한다.
 
 fp8 / bfloat16 등 새로운 dtype 도입
@@ -384,7 +402,7 @@ multi-rank HBM/DRAM 구성
 
 형태로 확장하는 것을 원칙으로 한다.
 
-15. 결론 (Summary)
+# 15. 결론 (Summary)
 bitwidth_memory_mapping.md는
 
 “bitwidth가 실제 메모리에서 어떤 의미를 가지는가?”

@@ -79,43 +79,43 @@ GEMM 타일의 총 MAC 연산량은 다음과 같이 정의한다.
 
 ```text
 MACs_tile = M × N × K
+```
+
 여기서:
 
-M: output rows (tile 높이)
+- M: output rows (tile 높이)  
+- N: output columns (tile 너비)  
+- K: reduction dimension (공통 inner dimension)  
 
-N: output columns (tile 너비)
-
-K: reduction dimension (공통 inner dimension)
-
-예: M=64, N=128, K=256이면
+예: M=64, N=128, K=256이면  
 MACs_tile = 64 × 128 × 256
 
 TE의 기본 timing 모델은 이 MACs_tile 값을
 엔진의 처리 능력(macs_per_cycle)으로 나누어 latency를 추정하는 방식이다.
 
-5. TE 성능 파라미터 (Performance Parameters)
+# 5. TE 성능 파라미터 (Performance Parameters)
 TE timing 모델은 다음 하드웨어 파라미터에 의해 제어된다
 (구체 값은 config 파일 또는 시뮬레이터 설정에서 제공).
 
-파라미터 이름	설명
-macs_per_cycle_base	기준 bitwidth(예: W8A8)에서의 cycle당 MAC 처리량
-init_latency_cycles	파이프라인 warm-up, command decode, setup 비용
-finalize_latency_cycles	결과 write-back, flush 비용
-bitwidth_scale_weight	weight bitwidth에 따른 성능 scaling factor
-bitwidth_scale_activation	activation bitwidth에 따른 scaling factor
+파라미터 이름	설명  
+macs_per_cycle_base	기준 bitwidth(예: W8A8)에서의 cycle당 MAC 처리량  
+init_latency_cycles	파이프라인 warm-up, command decode, setup 비용  
+finalize_latency_cycles	결과 write-back, flush 비용  
+bitwidth_scale_weight	weight bitwidth에 따른 성능 scaling factor  
+bitwidth_scale_activation	activation bitwidth에 따른 scaling factor  
 max_parallel_tiles	TE 하나가 동시에 처리할 수 있는 타일 수 (보통 1)
 
 bitwidth 스케일링은 다음과 같이 사용될 수 있다.
 
-text
-Copy code
+```text
 macs_per_cycle_effective
     = macs_per_cycle_base
       × f_w(qbits_weight)
       × f_a(qbits_activation)
+```
 이때 f_w, f_a는 bitwidth에 따라 1 이상(가속) 또는 1 이하(감속)이 될 수 있는 scaling 함수이다.
 
-6. Bitwidth 기반 성능 스케일링 모델
+# 6. Bitwidth 기반 성능 스케일링 모델
 Mixed precision(W/A)를 반영하기 위해
 weight/activation bitwidth에 따른 성능 스케일링을 정의한다.
 
@@ -138,17 +138,21 @@ activation bitwidth는 보통 weight만큼 큰 효과를 주지 않지만,
 일부 구조에서는 read/write bandwidth에 영향을 줄 수 있음
 
 6.2 Effective MAC/cycle
-text
-Copy code
+
+```text
 macs_per_cycle_eff
     = macs_per_cycle_base
       × f_w(qbits_weight)
       × f_a(qbits_activation)
+```
+
 6.3 TE latency 기본 공식
-text
-Copy code
+
+```text
 compute_cycles_raw = ceil( MACs_tile / macs_per_cycle_eff )
-7. 파이프라인 및 오버헤드 모델
+```
+
+# 7. 파이프라인 및 오버헤드 모델
 TE는 일반적으로 파이프라인 구조를 가지므로
 tile 수행 시 다음과 같은 오버헤드를 고려한다.
 
@@ -158,12 +162,12 @@ tile 수행 시 다음과 같은 오버헤드를 고려한다.
 
 최종 TE latency는 다음과 같이 계산한다.
 
-text
-Copy code
+```text
 te_latency_tile
     = init_latency_cycles
       + compute_cycles_raw
       + finalize_latency_cycles
+```
 초기 버전에서는 파이프라인 숨김효과를 별도로 고려하지 않고
 위와 같이 단순 합산 모델을 사용한다.
 향후 다음과 같은 확장이 가능하다.
@@ -172,7 +176,7 @@ te_latency_tile
 
 multi-tile pipeline overlap 모델 도입
 
-8. SPM 접근 및 내부 대역폭 제약
+# 8. SPM 접근 및 내부 대역폭 제약
 TE는 SPM에서 IFM/WGT/OFM 데이터를 읽고/쓰며 동작한다.
 DMA timing과 별도로, TE 내부에도 아래와 같은 제약이 존재할 수 있다.
 
@@ -198,7 +202,7 @@ SPM 내부 대역폭 제약은 TE의 macs_per_cycle_eff에 내재화
 SPM bank conflict 등의 메모리 이슈는
 dma_timing_spec.md 및 MemoryModel 쪽에서 다룬다.
 
-9. Multi-TE 환경에서의 타이밍 모델
+# 9. Multi-TE 환경에서의 타이밍 모델
 NPU에는 일반적으로 여러 개의 TE가 존재한다.
 
 num_te = 2, 4, 8, ...
@@ -209,11 +213,12 @@ CMDQ에서 te_id 필드는 어떤 TE에 tile을 할당할지 나타냄
 
 시뮬레이터는 각 TE에 대해 아래 상태를 유지한다.
 
-text
-Copy code
+```text
 te_state[te_id]:
     - busy_until_cycle
     - current_tile_info (optional)
+```
+
 9.1 TE tile issue 규칙
 ControlFSM는 CMDQ의 TE_GEMM_TILE 엔트리를 본다.
 
@@ -230,7 +235,7 @@ end_cycle = current_cycle + te_latency_tile
 
 te_state[te_id].busy_until_cycle = end_cycle
 
-10. 예시: TE 타일 latency 계산
+# 10. 예시: TE 타일 latency 계산
 10.1 설정
 macs_per_cycle_base = 4096 MACs/cycle
 
@@ -250,7 +255,7 @@ f_w(4) = 1.5
 
 f_a(8) = 1.0
 
-10.2 계산
+# 10.2 계산
 MACs_tile = 64 × 128 × 256
 
 macs_per_cycle_eff = 4096 × 1.5 × 1.0 = 6144
@@ -261,7 +266,7 @@ te_latency_tile = 8 + compute_cycles_raw + 4
 
 이 te_latency_tile 값이 해당 타일의 busy 구간을 정의한다.
 
-11. TE Timing과 Quantization의 관계
+# 11. TE Timing과 Quantization의 관계
 Quantization은 TE timing에 크게 두 가지 방식으로 영향 준다.
 
 비트폭에 따른 연산 유닛 효율 변화
@@ -279,11 +284,10 @@ tile 크기/구성이 달라질 수 있음 (SPM에 더 많은 타일 저장 가�
 TE timing spec은 1번에 해당하는 연산 효율 부분에 집중하며,
 2번은 dma_timing_spec.md 와 SPM/Tile 설계에서 처리한다.
 
-12. TE Timing Trace
+# 12. TE Timing Trace
 TraceEngine은 TE가 tile을 수행할 때 다음 정보를 기록한다.
 
-json
-Copy code
+```json
 {
   "engine": "TE",
   "id": 0,
@@ -296,6 +300,7 @@ Copy code
   "end_cycle": 10200,
   "macs": 2097152
 }
+```
 이 정보는:
 
 layer별 compute latency breakdown
@@ -308,7 +313,7 @@ Gantt Chart, utilization 그래프
 
 등의 분석에 사용된다.
 
-13. TE Timing 검증 규칙
+# 13. TE Timing 검증 규칙
 시뮬레이터는 TE 명령 처리 시 다음을 검증해야 한다.
 
 M, N, K > 0
@@ -325,7 +330,7 @@ qbits_weight, qbits_activation가 지원 가능한 bitwidth인지
 
 오류 발생 시 CMDQ invalid 에러를 보고하고 시뮬레이션을 종료하는 것이 원칙이다.
 
-14. 확장성 (Extensibility)
+# 14. 확장성 (Extensibility)
 TE timing 모델은 다음과 같은 확장을 염두에 두고 설계되었다.
 
 Conv 전용 타일 (TE_CONV_TILE)
@@ -359,7 +364,7 @@ int2/int1 등 ultra-low-bit에서 special path 사용
 새로운 기능이 추가될 때는
 기본 공식 구조를 유지하되, 스케일링 혹은 추가 term을 도입하는 방식으로 확장해야 한다.
 
-15. 결론 (Summary)
+# 15. 결론 (Summary)
 te_timing_spec.md는 NPU Simulator에서의 Tensor Engine timing을 정의하는 핵심 문서이다.
 
 핵심 요약:

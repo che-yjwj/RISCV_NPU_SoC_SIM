@@ -44,25 +44,27 @@ Top-level 구조:
   "bandwidth_samples": [ ... ],
   "summary_metrics": { ... }
 }
+```
+
 각 필드는 아래 섹션에서 상세히 정의한다.
 
-3. version
-json
-Copy code
+# 3. version
+
+```json
 "version": "1.0"
+```
 Trace 포맷의 버전
 
 Breaking change가 있을 경우 Major를 올려야 한다.
 
 Viewer/Profiler는 version을 확인하여 호환성 체크를 수행해야 한다.
 
-4. run_metadata
+# 4. run_metadata
 시뮬레이션 실행 환경/실험 조건에 대한 메타데이터.
 
 예시:
 
-json
-Copy code
+```json
 "run_metadata": {
   "run_id": "2025-11-30_ia_npu_sim_run_001",
   "timestamp": "2025-11-30T10:32:45Z",
@@ -76,6 +78,7 @@ Copy code
   "ir_snapshot_file": "output/ir/run_001_ir.json",
   "notes": "baseline: W4A8, KV4, 2TE+2VE"
 }
+```
 필드 정의
 run_id (string)
 
@@ -103,14 +106,13 @@ IR snapshot 파일 경로
 
 notes (string, optional)
 
-5. config_snapshot
+# 5. config_snapshot
 시뮬레이터 구성 상태를 snapshot으로 기록.
 (TE/VE 수, DMA 채널 수, bitwidth 허용 범위 등)
 
 예시:
 
-json
-Copy code
+```json
 "config_snapshot": {
   "npu": {
     "num_te": 2,
@@ -133,9 +135,10 @@ Copy code
     "spm_bank_size_bytes": 262144
   }
 }
+```
 이 블록은 Trace만 보고도 어떤 config에서 나온 결과인지를 재현 가능하게 한다.
 
-6. timeline_events
+# 6. timeline_events
 시뮬레이터에서 발생하는 주요 이벤트를 시간축(cycle) 기준으로 기록한 리스트.
 
 타입은 크게 네 가지:
@@ -148,13 +151,12 @@ TOKEN_EVENT: LLM token 경계 정보
 
 MARKER_EVENT: 사용자 정의 마커 / 구간 태그
 
-6.1 ENGINE_EVENT
+# 6.1 ENGINE_EVENT
 엔진(DMA/TE/VE/Host 등)의 “작업 하나”를 나타내는 레코드.
 
 예시:
 
-json
-Copy code
+```json
 {
   "type": "ENGINE_EVENT",
   "engine": "TE",
@@ -174,6 +176,7 @@ Copy code
     "macs": 2097152
   }
 }
+```
 공통 필드
 필드	타입	설명
 type	string	"ENGINE_EVENT"
@@ -188,8 +191,8 @@ end_cycle	int	exclusive 또는 inclusive (프로젝트에서 하나로 고정)
 details	object	엔진별 추가 정보
 
 DMA 예시
-json
-Copy code
+
+```json
 {
   "type": "ENGINE_EVENT",
   "engine": "DMA",
@@ -211,9 +214,11 @@ Copy code
     "spm_offset": 8192
   }
 }
+```
+
 VE 예시
-json
-Copy code
+
+```json
 {
   "type": "ENGINE_EVENT",
   "engine": "VE",
@@ -229,13 +234,13 @@ Copy code
     "qbits_activation": 8
   }
 }
-6.2 MEM_ACCESS_EVENT
+```
+# 6.2 MEM_ACCESS_EVENT
 보다 세밀한 DRAM/SPM access 수준의 기록이 필요할 때 사용.
 
 예시:
 
-json
-Copy code
+```json
 {
   "type": "MEM_ACCESS_EVENT",
   "mem_type": "DRAM",
@@ -247,6 +252,7 @@ Copy code
   "source_engine_id": 0,
   "cmdq_id": 10
 }
+```
 필드 정의
 필드	타입	설명
 type	string	"MEM_ACCESS_EVENT"
@@ -262,13 +268,12 @@ cmdq_id	int	연관된 CMDQ entry id
 초기 버전에서는 DRAM만 기록하고,
 SPM은 옵션으로 둘 수 있다.
 
-6.3 TOKEN_EVENT (LLM 전용)
+# 6.3 TOKEN_EVENT (LLM 전용)
 LLM 시뮬레이션에서 토큰 경계를 명확히 표현하기 위한 이벤트.
 
 예시:
 
-json
-Copy code
+```json
 {
   "type": "TOKEN_EVENT",
   "phase": "DECODE",
@@ -280,6 +285,7 @@ Copy code
     "prompt_len": 512
   }
 }
+```
 필드 정의
 필드	타입	설명
 type	string	"TOKEN_EVENT"
@@ -297,13 +303,12 @@ prefill / decode 구간 분리
 
 KV Cache traffic per token 등 분석을 수행할 수 있다.
 
-6.4 MARKER_EVENT
+# 6.4 MARKER_EVENT
 사용자 또는 시뮬레이터가 임의로 삽입하는 마커 이벤트.
 
 예시:
 
-json
-Copy code
+```json
 {
   "type": "MARKER_EVENT",
   "name": "PREFILL_DONE",
@@ -312,13 +317,14 @@ Copy code
     "note": "prefill stage finished"
   }
 }
-7. bandwidth_samples
+```
+
+# 7. bandwidth_samples
 주기적으로 샘플링된 DRAM bandwidth, SPM bank usage 등을 기록하는 배열.
 
 예시:
 
-json
-Copy code
+```json
 "bandwidth_samples": [
   {
     "cycle": 8000,
@@ -333,6 +339,7 @@ Copy code
     "dram_write_bytes": 0
   }
 ]
+```
 필드 정의
 필드	타입	설명
 cycle	int	샘플링 윈도우 시작 cycle
@@ -350,13 +357,12 @@ token별 bandwidth profile
 
 등을 쉽게 계산할 수 있다.
 
-8. summary_metrics
+# 8. summary_metrics
 전체 run에 대한 집계 정보.
 
 예시:
 
-json
-Copy code
+```json
 "summary_metrics": {
   "cycles_total": 250000,
   "dram_bytes_read": 134217728,
@@ -386,14 +392,14 @@ Copy code
     "avg_decode_latency_cycles": 500
   }
 }
+```
 summary_metrics는 Trace 없이도 빠르게 비교/검색할 수 있는 정보이며,
 다수의 trace를 모아 실험 결과를 정리할 때 유용하다.
 
-9. 파일 예시 (전체 예)
+# 9. 파일 예시 (전체 예)
 간단한 예시:
 
-json
-Copy code
+```json
 {
   "version": "1.0",
   "run_metadata": {
@@ -469,7 +475,9 @@ Copy code
     "dram_bytes_write": 0
   }
 }
-10. 설계 철학
+```
+
+# 10. 설계 철학
 Trace 포맷은 다음 철학을 따른다.
 
 Human-readable 우선 → JSON
@@ -486,21 +494,16 @@ Python, JS, Rust 등 어디에서나 쉽게 파싱 가능
 
 Spec-driven 확장
 
-새로운 이벤트 타입 추가 시
-
-type 필드에 새 문자열 추가
-
+새로운 이벤트 타입 추가 시  
+type 필드에 새 문자열 추가  
 기존 필드에는 영향을 주지 않음
 
-분리된 책임
-
-Simulator: trace 파일 생성
-
-Viewer/Profiler: trace 파일 소비 및 시각화/분석
-
+분리된 책임  
+Simulator: trace 파일 생성  
+Viewer/Profiler: trace 파일 소비 및 시각화/분석  
 포맷 스펙: 양쪽 사이의 계약(Contract)
 
-11. Validation 규칙
+# 11. Validation 규칙
 Trace 파일 로더는 다음을 검증해야 한다.
 
 version 존재 및 지원 버전인지 확인

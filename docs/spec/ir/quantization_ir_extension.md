@@ -82,6 +82,8 @@ LayerIR 공통 스키마에 아래 세 필드를 추가한다.
   "qbits_activation": 8,
   "qbits_kv": null
 }
+```
+
 의미
 필드	설명
 qbits_weight	해당 레이어의 weight bitwidth
@@ -96,15 +98,16 @@ qbits_weight / qbits_activation은 대부분의 레이어에서 기본 적용
 
 bitwidth는 tile-level로 override 가능
 
-3.2 TensorIR 내 Quantization 필드
+## 3.2 TensorIR 내 Quantization 필드
 모든 TensorIR은 다음 필드를 갖는다.
 
-json
-Copy code
+```json
 {
   "dtype": "fp32 | int8 | int4 | int2",
   "qbits": 8
 }
+```
+
 dtype vs qbits
 dtype은 저장 타입(메모리 표현)
 
@@ -114,11 +117,11 @@ qbits는 실제 quantization bitwidth
 예: int4 dtype + qbits=4 (기본)
 예: fp16 dtype + qbits=8 (activation 내부 quantization)
 
-4. Layer별 Quantization Policy
+# 4. Layer별 Quantization Policy
 IR Builder + Quantization Annotator 조합에서
 각 LayerIR에 대해 특정 정책 기반으로 bitwidth가 설정된다.
 
-4.1 GEMM / MatMul
+## 4.1 GEMM / MatMul
 W-bit: 2/4/8 가능
 
 A-bit: 4/8 가능
@@ -127,74 +130,74 @@ A-bit: 4/8 가능
 
 KV-bit는 사용되지 않음
 
-4.2 LayerNorm / RMSNorm
+## 4.2 LayerNorm / RMSNorm
 A-bit 중심
 
 W-bit 없음 (gamma/beta만 FP or low-bit 가능)
 
 LN tile 연산은 VE에서 실행되므로 VE latency는 A-bit에 비례
 
-4.3 Softmax
+## 4.3 Softmax
 A-bit 적용
 
 exp/sum/normalize 구간은 int8 기반 확장 or hybrid precision 가능
 
 tile-level에서 qbits-activation이 latency/byte-cost를 좌우
 
-4.4 Q/K/V Projection
+## 4.4 Q/K/V Projection
 각 projection은 별도의 bitwidth를 가질 수 있음.
 
-arduino
-Copy code
+```text
 Q_proj: W-bit=4, A-bit=8
 K_proj: W-bit=4, A-bit=8
 V_proj: W-bit=4, A-bit=8
+```
 이 정보는 3개의 GEMM tile에 각각 반영된다.
 
-4.5 Attention Scores (Q · K^T)
+## 4.5 Attention Scores (Q · K^T)
 A-bit 사용
 
 head-specific tile quant도 가능
 
 KV Cache는 별도 bitwidth 사용 가능
 
-4.6 KV Cache Update
+## 4.6 KV Cache Update
 KV Cache만 특수 bitwidth 설정 가능:
 
 예:
 
-json
-Copy code
+```json
 {
   "qbits_activation": 8,
   "qbits_kv": 4
 }
+```
 이는 DMA_LOAD_TILE / DMA_STORE_TILE에서
 tensor_role="kv"로 반영됨.
 
-5. Quantization 정보의 IR → TileGraph → CMDQ 전파 규칙
+# 5. Quantization 정보의 IR → TileGraph → CMDQ 전파 규칙
 Quantization 정보는 전체 파이프라인에서 다음 규칙에 따라 전파된다.
 
-5.1 IR 단계
+## 5.1 IR 단계
 LayerIR에 qbits 설정
 
 TensorIR에 dtype/qbits 설정
 
 shape/layout 정보와 함께 저장
 
-5.2 TileGraph 단계
+## 5.2 TileGraph 단계
 TileGraph는 다음 확장 정보를 tile node에 포함한다.
 
-json
-Copy code
+```json
 {
   "tile_qbits_w": 4,
   "tile_qbits_a": 8,
   "tile_qbits_kv": null
 }
+```
 TileGraph는 tile weight / tile activation 의 정확한 byte 수를 계산할 수 있어야 한다.
 
-5.3 SPM Allocation 단계
+## 5.3 SPM Allocation 단계
 spm_required_bytes = elements * qbits / 8
 
 을 이용해 tile-level SPM occupancy를 계산한다.
@@ -209,7 +212,7 @@ DMA burst 요청 크기 감소
 
 전체 latency 감소 가능
 
-5.4 Static Scheduler
+## 5.4 Static Scheduler
 Scheduler는 bitwidth를 기반으로 다음 사항을 고려 가능:
 
 DMA latency (low-bit tile은 빨리 끝남)
@@ -220,24 +223,25 @@ VE tile latency (vector length * qbits 영향)
 
 즉, 스케줄러는 bitwidth을 보고 tile 순서를 재배치할 수 있다.
 
-5.5 CMDQ Generator
+## 5.5 CMDQ Generator
 CMDQ 엔트리에 bitwidth가 직접 기록된다.
 
 예:
 
-json
-Copy code
+```json
 {
   "opcode": "DMA_LOAD_TILE",
   "qbits": 4
 }
-json
-Copy code
+```
+
+```json
 {
   "opcode": "TE_GEMM_TILE",
   "qbits_weight": 4,
   "qbits_activation": 8
 }
+```
 Simulator는 해당 필드를 사용하여:
 
 DMA bytes 계산
@@ -248,12 +252,12 @@ DRAM bandwidth occupancy 계산
 
 등을 수행한다.
 
-6. Quantization Metadata 구조
+# 6. Quantization Metadata 구조
 Quantization 설정은 QConfig라는 독립 컨테이너에 보관될 수 있다.
 
-6.1 QConfig 예시
-json
-Copy code
+## 6.1 QConfig 예시
+
+```json
 {
   "default": {
     "weight": 4,
@@ -267,13 +271,13 @@ Copy code
     "kv_update": { "kv": 4 }
   }
 }
+```
 QConfig는 IRBuilder 혹은 Quantization Annotator가 IR에 주입하는 데이터다.
 
-7. Quantization-aware IR Example (Full LayerIR)
+# 7. Quantization-aware IR Example (Full LayerIR)
 예시 LayerIR:
 
-json
-Copy code
+```json
 {
   "id": "ffn_gemm1",
   "op_type": "GEMM",
@@ -285,10 +289,10 @@ Copy code
   "qbits_activation": 8,
   "qbits_kv": null
 }
+```
 예시 KV Cache LayerIR:
 
-json
-Copy code
+```json
 {
   "id": "kv_cache_append",
   "op_type": "KV_UPDATE",
@@ -299,11 +303,12 @@ Copy code
   "qbits_activation": 8,
   "qbits_kv": 4
 }
-8. Quantization 흐름 총정리 (Dataflow)
+```
+
+# 8. Quantization 흐름 총정리 (Dataflow)
 텍스트 기반 다이어그램으로 표현:
 
-scss
-Copy code
+```text
 ONNX Model
      ↓
 IRBuilder
@@ -325,10 +330,11 @@ CMDQGenerator
 CMDQ(qbits_* 필드 포함)
      ↓
 Simulator (DMA/TE/VE timing 반영)
+```
 모든 단계가 quantization 정보를 활용하고 있으며
 bitwidth 변화는 전체 성능/메모리 모델에 수준 높은 영향력을 가진다.
 
-9. 확장성 (Extensibility)
+# 9. 확장성 (Extensibility)
 Quantization IR 확장은 다음 확장을 자연스럽게 지원한다.
 
 ✔ 더 많은 bitwidth 추가
@@ -349,7 +355,7 @@ fine-grained mixed precision 지원 가능
 ✔ Mixed integer/floating bit-width
 LayerNorm 등에서 internal fp16, output int8 등의 조합 허용
 
-10. 결론 (Summary)
+# 10. 결론 (Summary)
 본 문서는 NPU IR의 Quantization Extension을 공식화한 문서로서,
 정적 스케줄 기반 NPU 컴파일러 + 시뮬레이터에서 필요로 하는 모든 bitwidth 정보를
 IR 레벨에서 구조적으로 정의한다.
