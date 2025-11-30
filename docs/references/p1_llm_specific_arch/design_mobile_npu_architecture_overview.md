@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # `design_mobile_npu_architecture_overview.md`
 
 # 📘 `design_mobile_npu_architecture_overview.md`가 어떤 문서인가?

@@ -2,6 +2,7 @@
 **Path:** `docs/spec/timing/dma_timing_spec.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** Memory / Bus / DMA Architect  
 **Last Updated:** YYYY-MM-DD  
 

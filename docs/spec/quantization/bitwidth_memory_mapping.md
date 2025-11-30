@@ -2,6 +2,7 @@
 **Path:** `docs/spec/quantization/bitwidth_memory_mapping.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** Quantization / Memory Architect  
 **Last Updated:** YYYY-MM-DD  
 

@@ -3,6 +3,7 @@
 
 Version: 1.0 Full  
 Status: Complete Specification  
+<!-- status: complete -->
 Author: IA_RISC_V_NPU_Simulator Team  
 
 ---

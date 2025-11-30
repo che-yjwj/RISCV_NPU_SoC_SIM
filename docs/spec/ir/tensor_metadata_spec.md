@@ -2,6 +2,7 @@
 **Path:** `docs/spec/ir/tensor_metadata_spec.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** IR / Memory Architect  
 **Last Updated:** YYYY-MM-DD  
 

@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # MicroScheduler Specification (v1)
 
 ## 1. Purpose & Scope

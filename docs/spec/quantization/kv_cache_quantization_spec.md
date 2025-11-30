@@ -2,6 +2,7 @@
 **Path:** `docs/spec/quantization/kv_cache_quantization_spec.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** Quantization Architect / LLM Memory Architect  
 **Last Updated:** YYYY-MM-DD  
 

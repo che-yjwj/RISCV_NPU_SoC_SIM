@@ -1,7 +1,8 @@
 # Trace Format Specification  
-**Path:** `docs/trace/trace_format_spec.md`  
+**Path:** `docs/spec/trace/trace_format_spec.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** Trace / Tooling Architect  
 **Last Updated:** YYYY-MM-DD  
 

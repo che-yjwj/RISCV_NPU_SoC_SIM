@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # LLM Kernel Execution Specification (v1)
 
 ## 1. Purpose & Scope

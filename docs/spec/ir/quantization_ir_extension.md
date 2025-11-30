@@ -2,6 +2,7 @@
 **Path:** `docs/spec/ir/quantization_ir_extension.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** IR / Quantization Architect  
 **Last Updated:** YYYY-MM-DD  
 

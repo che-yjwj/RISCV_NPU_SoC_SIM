@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # TDD – Py-V Integration with xNPU ISA (v1)
 
 ## 1. Purpose

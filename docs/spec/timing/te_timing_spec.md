@@ -2,6 +2,7 @@
 **Path:** `docs/spec/timing/te_timing_spec.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** Compute / Tensor Engine Architect  
 **Last Updated:** YYYY-MM-DD  
 

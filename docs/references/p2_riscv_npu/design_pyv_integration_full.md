@@ -3,6 +3,7 @@
 **Full Technical Design Document (Ultra‑Long Version)**  
 Version: 1.0  
 Status: Complete  
+<!-- status: complete -->
 Author: IA_RISC_V_NPU_Simulator Team  
 
 ---

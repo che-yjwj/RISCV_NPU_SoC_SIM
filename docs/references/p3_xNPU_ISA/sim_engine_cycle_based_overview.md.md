@@ -1,3 +1,4 @@
+<!-- status: draft -->
 docs/overview/sim_engine_cycle_based_overview.md
 # 전역 CPU Cycle Loop 기반 Cycle-Level 시뮬레이터 개요
 

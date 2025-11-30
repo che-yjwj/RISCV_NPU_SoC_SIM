@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # design_static_memory_planner.md
 모바일 NPU용 정적 메모리 플래너 설계 문서
 ======================================

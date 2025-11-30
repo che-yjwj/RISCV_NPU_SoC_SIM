@@ -1,3 +1,4 @@
+<!-- status: draft -->
 
 # IA_RISC_V_NPU_Simulator v2  
 **High-Fidelity, Modular, Research-Grade RISC‑V + NPU Architecture Simulator**  

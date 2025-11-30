@@ -3,6 +3,7 @@ CMDQ Format Specification (Full Version)
 Path: docs/spec/isa/cmdq_format_spec.md
 Version: v1.0
 Status: Stable Draft
+<!-- status: complete -->
 Owner: ISA / Compiler Architect
 Last Updated: YYYY-MM-DD
 

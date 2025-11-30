@@ -1,3 +1,4 @@
+<!-- status: draft -->
 **모바일 NPU용 정적 LLM 워크로드 사양서 (Workload Specification Document)**
 
 Version 1.0

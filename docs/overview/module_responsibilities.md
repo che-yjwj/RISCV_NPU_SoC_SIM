@@ -2,6 +2,7 @@
 **Path:** `docs/overview/module_responsibilities.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** System Architect  
 **Last Updated:** YYYY-MM-DD  
 

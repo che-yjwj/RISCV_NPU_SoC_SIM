@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # Memory & NoC Model Specification (v1)
 
 ## 1. Purpose & Scope

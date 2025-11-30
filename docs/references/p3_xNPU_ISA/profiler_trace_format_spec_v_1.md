@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # Profiler & Trace Format Specification (v1)
 
 ## 1. Purpose & Scope

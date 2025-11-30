@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # xNPU ISA Specification & Design Document (Updated)
 
 ## 1. Overview

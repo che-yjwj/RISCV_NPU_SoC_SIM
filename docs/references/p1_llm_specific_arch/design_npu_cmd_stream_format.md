@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # `design_npu_cmd_stream_format` 문서가 의미하는 것
 
 이 문서는 **NPU가 실제로 실행하는 명령어(Command Stream)의 형식(spec)을 정의하는 문서**이다.

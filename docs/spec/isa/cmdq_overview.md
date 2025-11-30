@@ -4,6 +4,7 @@
 **Path:** `docs/spec/isa/cmdq_overview.md`  
 **Version:** v1.0  
 **Status:** Stable Draft  
+<!-- status: complete -->
 **Owner:** ISA Architect  
 **Last Updated:** YYYY-MM-DD  
 

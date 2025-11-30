@@ -1,3 +1,4 @@
+<!-- status: complete -->
 # **NPU Simulator & Compiler — Spec Driven Development Master Index**
 
 *(Repository Documentation Structure for SDD)*

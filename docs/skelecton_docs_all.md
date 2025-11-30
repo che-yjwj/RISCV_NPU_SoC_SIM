@@ -1,3 +1,4 @@
+<!-- status: in_progress -->
 ## 1. `docs/overview/` 폴더
 
 ```markdown

@@ -3,6 +3,7 @@
 **Full Technical Overview (Ultra‑Long, Expanded Edition)**  
 Version: 1.1  
 Status: Complete  
+<!-- status: complete -->
 Author: IA_RISC_V_NPU_Simulator Team  
 
 ---

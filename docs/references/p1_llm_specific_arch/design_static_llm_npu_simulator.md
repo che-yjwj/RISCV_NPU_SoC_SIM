@@ -1,3 +1,4 @@
+<!-- status: draft -->
 # ✅ 0. 모바일 NPU는 “정적 스케줄링”이 핵심이다
 
 서버형(NVIDIA/H100, TPU, CPX) → 동적 스케줄링, QoS, multi-session, prefill/decode 분리
