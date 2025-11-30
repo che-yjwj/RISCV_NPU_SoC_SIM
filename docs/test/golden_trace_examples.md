@@ -1,35 +1,53 @@
 # Golden Trace Examples
-**Path:** `docs/test/golden_trace_examples.md`
-**Status:** Draft
-<!-- status: in_progress -->
-**Owner:** TBD
+**Path:** `docs/test/golden_trace_examples.md`  
+**Status:** Stable Draft  
+<!-- status: complete -->
+**Owner:** TBD  
 **Last Updated:** YYYY-MM-DD
 
 ---
 
 ## 1. 목적
-회귀 검증용 대표 trace 관리
+회귀(regression) 검증을 위해 **대표적인 workload들에 대한 참조 trace(golden)**를 정의하고 관리 방법을 규정한다.
 
 ## 2. 범위
-- 포함 테스트 범주
-- 제외 범위
+- 포함:
+  - MLP/Conv/Attention/LLM 블록 등 대표적인 실행 패턴.  
+  - 주요 하드웨어/bitwidth 조합(예: 2TE+2VE, W4A8, KV4 등).  
+- 제외:
+  - 모든 가능한 모델/구성(대표 샘플만 선정).
 
-## 3. 테스트 항목/시나리오
-| ID | 설명 | 기대 결과 |
-|----|------|------------|
-| T1 | TODO | TODO |
+## 3. Golden 시나리오 예시
+| ID        | 워크로드         | 설명                               | 아티팩트 위치                          |
+|-----------|------------------|------------------------------------|----------------------------------------|
+| GT-MLP-01 | Small MLP        | feed-forward network               | `tests/golden/trace/mlp_small.json`    |
+| GT-CONV-01| ConvNet          | Conv+Pool 조합                     | `tests/golden/trace/conv_small.json`   |
+| GT-ATTN-01| Self-Attention   | 단일 Attention 블록               | `tests/golden/trace/attn_block.json`   |
+| GT-LLM-01 | LLM Prefill/Decode | 짧은 시퀀스 LLM 실행             | `tests/golden/trace/llm_short.json`    |
+
+각 항목은 trace_format_spec에 맞춘 단일 JSON 파일로 관리한다.
 
 ## 4. 절차 / 자동화
-- 실행 단계
-- 도구/스크립트
+- golden 생성:
+  1. 신뢰할 수 있는 버전의 컴파일러/시뮬레이터로 실행.  
+  2. Trace 결과를 검토/승인 후 `tests/golden/trace/`에 저장.  
+- 회귀 검증:
+  - `tests/regression/test_golden_trace.py`에서 현재 trace와 golden trace를 비교.  
+  - 허용 오차 범위(예: latency ±1%, BW ±1%) 내에서 diff 허용.
 
 ## 5. 데이터 / 아티팩트 관리
-- 입력 데이터 위치
-- Golden 결과 위치
+- 저장 위치:
+  - `tests/golden/trace/*.json`  
+  - 필요 시 요약 CSV/메타데이터(`tests/golden/trace_index.yaml`) 추가.  
+- 변경 정책:
+  - golden 업데이트는 반드시 PR에서 “왜 변경되었는지” 설명과 함께 리뷰/승인 필요.
 
 ## 6. 리뷰 / 승인 기준
-- 성공 판정 기준
-- 계측/로그 요구사항
+- golden 파일 변경 시:
+  - [ ] 관련 spec/design/test 문서에서 변경 이유가 설명되어 있는가?  
+  - [ ] 기존 버전과 비교한 diff(주요 metric) 요약이 있는가?  
+  - [ ] 변경이 의도된 regression이 아닌지 확인했는가?
 
 ## 7. 향후 확장
-- TODO
+- 다양한 시나리오(긴 시퀀스, 다양한 KV bitwidth, multi-TE/VE config) 추가.  
+- Golden trace 압축/샤딩 전략 도입(파일 수가 많아질 경우).  

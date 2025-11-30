@@ -1,38 +1,97 @@
 # SPM Allocator Design
-**Path:** `docs/design/spm_allocator_design.md`
-**Status:** Draft
-<!-- status: in_progress -->
-**Owner:** TBD
+**Path:** `docs/design/spm_allocator_design.md`  
+**Status:** Stable Draft  
+<!-- status: complete -->
+**Owner:** TBD  
 **Last Updated:** YYYY-MM-DD
 
 ---
 
 ## 1. 목적
-SPMAllocator 모듈/컴포넌트의 역할과 내부 구조, 확장 포인트를 정의한다.
+SPMAllocator는 TileGraph와 SPM 설정을 입력으로 받아 **각 tile의 IFM/WGT/OFM/KV 데이터를 SPM bank/offset에 배치**하는 오프라인 모듈이다.  
+이 문서는 SPMAllocator의 매핑 전략과 timing/메모리 스펙과의 연계를 정의한다.
+
+관련 스펙:
+- `docs/spec/ir/tensor_metadata_spec.md`
+- `docs/spec/quantization/bitwidth_memory_mapping.md`
+- `docs/spec/timing/spm_model_spec.md`
 
 ## 2. 책임
-- **입력:** TileGraph, SPM config
-- **출력:** tile별 bank/offset map
-- **주요 역할:** SPM mapping, bank conflict 완화
-- **하지 말아야 할 일:** Tile 크기 변경 로직
+- **입력**
+  - TileGraph: tile 단위 shape/qbits/lifetime 정보.
+  - SPM config: `num_banks`, `bank_size_bytes`, alignment 규칙 등.
+- **출력**
+  - 각 tile에 대해 IFM/WGT/OFM/KV별 `(bank, offset)` 매핑.
+  - CMDQGenerator가 사용할 수 있는 SPM allocation 메타데이터.
+- **주요 역할**
+  - tile bytes를 계산하고 bank 용량 내에서 배치.
+  - lifetime이 겹치지 않는 tile들을 같은 bank 공간에 재사용 가능하게 배치.
+  - bank conflict를 줄이기 위한 heuristic 적용(예: 서로 다른 bank로 분산).
+- **하지 말아야 할 일**
+  - tile 크기/shape를 변경 (이는 TilingPlanner 책임).
+  - runtime scheduling/timing 계산.
 
 ## 3. 내부 구조
-- 서브모듈/클래스 개요
-- 데이터 구조 또는 상태 머신
-- 주요 상호작용 다이어그램 TODO
+
+### 3.1 데이터 구조
+```python
+class TileAllocation:
+    tile_id: str
+    ifm: (bank, offset, bytes)
+    wgt: (bank, offset, bytes)
+    ofm: (bank, offset, bytes)
+    kv: Optional[(bank, offset, bytes)]
+    lifetime: (start_step, end_step)
+```
+
+- `BankState[bank]`:
+  - 현재 bank에 할당된 interval 목록 `(start_step, end_step, offset, size)`.
+
+### 3.2 라이프타임 모델
+- Tiling/Scheduler 단계에서 제공하는 **tile execution order**를 사용.
+- 간단한 모델: `start_step = first_cmdq_id_that_uses_tile`, `end_step = last_cmdq_id_that_uses_tile`.
 
 ## 4. 알고리즘 / 플로우
-1. 단계별 처리 요약
-2. pseudo code 또는 sequence diagram TODO
+
+### 4.1 bytes 계산
+각 tensor role별로:
+```text
+bytes = ceil(num_elements * qbits / 8)
+```
+`bitwidth_memory_mapping.md`와 동일.
+
+### 4.2 bank 할당 알고리즘(그리디 예시)
+1. 타일을 라이프타임 시작 시점 기준으로 정렬.
+2. 각 타일에 대해 IFM/WGT/OFM(및 KV)에 대해:
+   - 각 bank에서 겹치는 interval이 없는 offset 영역을 탐색.
+   - 여유 공간이 있는 bank 중 conflict 비용(예: 동일 bank에 중첩 DMA/TE 접근 수)이 최소인 bank를 선택.
+3. 할당 정보를 `TileAllocation`에 기록.
+
+```pseudo
+for tile in tiles_sorted_by_start:
+  for role in [IFM, WGT, OFM, KV]:
+    size = bytes(tile, role)
+    best_bank = argmin_bank(conflict_cost(bank, tile.lifetime, size))
+    offset = first_fit_offset(bank_state[best_bank], size)
+    bank_state[best_bank].add_interval(tile.lifetime, offset, size)
+    record_allocation(tile.id, role, best_bank, offset, size)
+```
 
 ## 5. 인터페이스
-- 함수/메서드 시그니처(초안)
-- 설정/구성 파라미터
-- 관련 스펙 링크
+- `SpmAllocator.allocate(tile_graph, spm_config) -> Dict[tile_id, TileAllocation]`
+- `SpmAllocator.dump_debug_view(path)`:
+  - bank별 사용량, conflict 예상 영역을 텍스트/JSON으로 출력.
+
+설정 파라미터:
+- bank 선택 heuristic (round-robin, min-conflict, random 등).
+- alignment 정책 (bank별 최소 offset 정렬 단위).
 
 ## 6. 예시 시나리오
-- 입력 → 처리 → 출력 흐름을 간단한 bullet로 설명
+- 작은 MLP 모델에 대한 TileGraph를 입력으로 SPMAllocator를 실행:
+  - IFM/WGT가 다른 bank에 배치되어 DMA/TE 병렬성이 높아지는지,
+  - bank별 사용량이 균형적인지 시각화로 검증.
 
 ## 7. 향후 확장
-- 추가 기능 아이디어
-- 테스트/검증 전략 TODO
+- multi-level SPM (L0/L1) 지원.
+- bank 간 migration (특정 타일을 다른 bank로 재배치).
+- tile lifetime을 cycle 단위로 세분화하여 더 정확한 conflict 최소화.

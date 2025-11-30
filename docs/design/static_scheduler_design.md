@@ -1,38 +1,86 @@
 # Static Scheduler Design
-**Path:** `docs/design/static_scheduler_design.md`
-**Status:** Draft
-<!-- status: in_progress -->
-**Owner:** TBD
+**Path:** `docs/design/static_scheduler_design.md`  
+**Status:** Stable Draft  
+<!-- status: complete -->
+**Owner:** TBD  
 **Last Updated:** YYYY-MM-DD
 
 ---
 
 ## 1. 목적
-정적 스케줄러 모듈/컴포넌트의 역할과 내부 구조, 확장 포인트를 정의한다.
+StaticScheduler는 TileGraph + SPM allocation + 엔진 구성 정보를 기반으로 **정적 tile-level 실행 순서와 deps를 생성**한다.  
+결과는 CMDQGenerator가 바로 사용할 수 있는 스케줄 DAG 형태가 된다.
+
+관련 스펙:
+- `docs/spec/isa/cmdq_overview.md`
+- `docs/overview/dataflow_overview.md`
 
 ## 2. 책임
-- **입력:** TileGraph+SPM map
-- **출력:** deps 있는 실행 그래프
-- **주요 역할:** DMA/TE/VE 순서 결정
-- **하지 말아야 할 일:** 엔진 내부 timing
+- **입력**
+  - TileGraph (tile 노드, 데이터 의존성 edges).
+  - SPM allocation 정보 (각 tile의 bank/offset).
+  - 엔진 구성 (`num_te`, `num_ve`, DMA channel 수).
+- **출력**
+  - tile-level schedule DAG:
+    - 각 tile에 할당된 엔진 (logical TE/VE/DMA 슬롯).
+    - deps_before 관계 (CMDQ의 deps 필드에 바로 대응).
+- **주요 역할**
+  - DMA LOAD/STORE, TE tile, VE tile 간의 순서/병렬 실행 계획.
+  - SPM reuse와 bank conflict를 고려하여 타일 실행 순서를 조정.
+- **하지 말아야 할 일**
+  - 실제 cycle-level timing 계산.
+  - CMDQ JSON 생성(이는 CmdqGenerator 책임).
 
 ## 3. 내부 구조
-- 서브모듈/클래스 개요
-- 데이터 구조 또는 상태 머신
-- 주요 상호작용 다이어그램 TODO
+
+### 3.1 ScheduleEntry
+```python
+class ScheduleEntry:
+    id: int              # schedule-local id
+    tile_id: str
+    op_class: str        # DMA_LOAD, DMA_STORE, TE, VE
+    engine_type: str     # DMA/TE/VE
+    engine_index: int    # logical 엔진 index
+    deps_before: list[int]
+```
+
+### 3.2 그래프 표현
+- `ScheduleDAG`:
+  - `entries: list[ScheduleEntry]`
+  - `edges: deps_before 관계 (from entry.id to dependent entry.id)`
 
 ## 4. 알고리즘 / 플로우
-1. 단계별 처리 요약
-2. pseudo code 또는 sequence diagram TODO
+
+### 4.1 기본 전략
+1. TileGraph를 레이어 순서/topological order로 순회.
+2. 각 tile에 대해:
+   - 필요 DMA LOAD_TILE (ifm/wgt), TE/VE tile, DMA STORE_TILE을 logical 순서로 생성.
+3. 데이터 의존성 기반으로 deps_before 추가:
+   - LOAD → TE/VE → STORE 흐름.
+   - TileGraph edges를 따라 producer tile의 STORE와 consumer tile의 LOAD/TE 사이에 deps 추가.
+
+### 4.2 엔진 배정
+- 간단한 라운드로빈 또는 load-balance heuristic:
+  - TE: `te_id = next_available_te(layer_or_tile_group)`.
+  - VE: `ve_id = next_available_ve(layer_or_tile_group)`.
+  - DMA: 단일 또는 소수 channel에 round-robin.
+
+### 4.3 SPM 관점 조정
+- SPMAllocator에서 제공하는 lifetime 정보와 bank occupancy를 기반으로:
+  - bank conflict가 커질 것으로 예상되는 타일은 순서를 조정하거나 deps를 삽입해 overlap 완화.
 
 ## 5. 인터페이스
-- 함수/메서드 시그니처(초안)
-- 설정/구성 파라미터
-- 관련 스펙 링크
+- `StaticScheduler.schedule(tile_graph, spm_alloc, hw_config) -> ScheduleDAG`
+
+구성 파라미터:
+- priority 정책 (레이어 우선 vs 타일 우선).
+- multi-engine balancing 정책.
 
 ## 6. 예시 시나리오
-- 입력 → 처리 → 출력 흐름을 간단한 bullet로 설명
+- 2개의 TE를 가진 환경에서:
+  - TileGraph의 독립 타일들이 TE0/TE1에 번갈아 배정되고,  
+    deps가 없는 타일은 최대한 병렬로 실행되도록 스케줄이 생성되는지 확인.
 
 ## 7. 향후 확장
-- 추가 기능 아이디어
-- 테스트/검증 전략 TODO
+- critical path 기반 우선순위 스케줄링.
+- 메모리/대역폭 aware 스케줄링 (DMA latency와 TE/VE 우선순위 조정).

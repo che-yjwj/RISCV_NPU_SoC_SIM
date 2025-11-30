@@ -1,38 +1,91 @@
 # Offline Compiler Design
-**Path:** `docs/design/offline_compiler_design.md`
-**Status:** Draft
-<!-- status: in_progress -->
-**Owner:** TBD
+**Path:** `docs/design/offline_compiler_design.md`  
+**Status:** Stable Draft  
+<!-- status: complete -->
+**Owner:** TBD  
 **Last Updated:** YYYY-MM-DD
 
 ---
 
 ## 1. 목적
-ONNX→CMDQ 오프라인 파이프라인 모듈/컴포넌트의 역할과 내부 구조, 확장 포인트를 정의한다.
+Offline Compiler는 ONNX 모델과 하드웨어 설정을 입력으로 받아 **NPU IR → TileGraph → SPM allocation → Static Schedule → CMDQ**를 생성하는 파이프라인이다.  
+이 문서는 상위 흐름과 각 서브모듈의 연결 관계를 정의한다.
+
+관련 스펙:
+- `docs/overview/system_architecture.md`
+- `docs/overview/dataflow_overview.md`
+- `docs/spec/ir/*.md`
+- `docs/spec/isa/*.md`
+- `docs/spec/timing/*.md`
+- `docs/spec/quantization/*.md`
 
 ## 2. 책임
-- **입력:** ONNX 모델, 하드웨어 config
-- **출력:** CMDQ, 보고용 로그/통계
-- **주요 역할:** IR 변환, 타일링, 스케줄링, CMDQ 생성
-- **하지 말아야 할 일:** 런타임 제어, 시뮬레이터 기능 중복
+- **입력**
+  - ONNX 모델 파일 또는 in-memory graph.
+  - 하드웨어 config (엔진 수, SPM 용량, DRAM/Bus, bitwidth 허용 등).
+  - Quantization 정책(QConfig).
+- **출력**
+  - CMDQ JSON (시뮬레이터 입력).
+  - Optional: NPU IR, TileGraph, SPM allocation, Schedule snapshot.
+- **주요 역할**
+  - IRBuilder: ONNX → NPU IR 변환.
+  - Quantization Annotator: qbits W/A/KV 주입.
+  - TilingPlanner: tile 크기/개수 결정 및 TileGraph 생성.
+  - SpmAllocator: tile별 SPM bank/offset 할당.
+  - StaticScheduler: DMA/TE/VE tile-level 순서+deps 결정.
+  - CmdqGenerator: 위 결과를 CMDQ JSON으로 serialize.
+- **하지 말아야 할 일**
+  - 시뮬레이터 동작/타이밍 계산.
+  - 런타임 제어(Host CPU 쪽 로직).
 
 ## 3. 내부 구조
-- 서브모듈/클래스 개요
-- 데이터 구조 또는 상태 머신
-- 주요 상호작용 다이어그램 TODO
+
+### 3.1 모듈 분할
+- `OfflineCompiler` (파사드)
+  - `IrBuilder`
+  - `QuantizationAnnotator`
+  - `TilingPlanner`
+  - `SpmAllocator`
+  - `StaticScheduler`
+  - `CmdqGenerator`
+
+### 3.2 데이터 플로우
+```text
+ONNX → IrBuilder → NPU IR
+      → QuantizationAnnotator → Annotated IR
+      → TilingPlanner → TileGraph
+      → SpmAllocator → TileGraph + SPM map
+      → StaticScheduler → tile-level schedule DAG
+      → CmdqGenerator → CMDQ(JSON)
+```
 
 ## 4. 알고리즘 / 플로우
-1. 단계별 처리 요약
-2. pseudo code 또는 sequence diagram TODO
+
+### 4.1 상위 run 메서드 예시
+```python
+def compile(onnx_path: str, hw_config: HwConfig, qconfig: QConfig) -> CmdqArtifact:
+    ir = IrBuilder.build(onnx_path)
+    ir = QuantizationAnnotator.annotate(ir, qconfig)
+    tile_graph = TilingPlanner.plan(ir, hw_config.spm, hw_config.engines)
+    tile_graph = SpmAllocator.allocate(tile_graph, hw_config.spm)
+    schedule = StaticScheduler.schedule(tile_graph, hw_config.engines)
+    cmdq = CmdqGenerator.generate(schedule, tile_graph, ir, hw_config)
+    return CmdqArtifact(cmdq=cmdq, ir=ir, tile_graph=tile_graph, schedule=schedule)
+```
 
 ## 5. 인터페이스
-- 함수/메서드 시그니처(초안)
-- 설정/구성 파라미터
-- 관련 스펙 링크
+- `OfflineCompiler.compile(onnx_model, hw_config, qconfig) -> CmdqArtifact`
+- 각 서브모듈은 `docs/design/ir_builder_design.md` 등에서 상세 정의.
+
+구성 파라미터:
+- optimization level (타일링 aggressiveness, scheduling heuristics).
+- debug 옵션(중간 결과 dump 여부).
 
 ## 6. 예시 시나리오
-- 입력 → 처리 → 출력 흐름을 간단한 bullet로 설명
+- Small MLP/Transformer block에 대해:
+  - ONNX → CMDQ까지의 결과를 모두 저장하여 시뮬레이터와 trace를 비교.
 
 ## 7. 향후 확장
-- 추가 기능 아이디어
-- 테스트/검증 전략 TODO
+- MLIR backend 연동.
+- auto-tuning 기반 tile/schedule search.
+- profile-guided compilation (이전 trace를 사용해 스케줄 개선).
