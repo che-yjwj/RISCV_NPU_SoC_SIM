@@ -65,7 +65,7 @@ Tensor 메타데이터는 IR 내에서 다음과 같은 기본 스키마를 가�
   "id": "string",
   "name": "string",
   "role": "activation | weight | kv | embedding | intermediate | output",
-  "shape": [ "int", "int", "..." ],
+  "shape": ["int", "int", "..."],
   "dtype": "fp32 | fp16 | int8 | int4 | int2",
   "qbits": 8,
   "layout": "NCHW | NHWC | [B, T, H] | [B, H, T, D] | custom",
@@ -80,6 +80,8 @@ Tensor 메타데이터는 IR 내에서 다음과 같은 기본 스키마를 가�
     "notes": ""
   }
 }
+```
+
 각 필드는 아래에서 상세히 정의한다.
 
 4. 필드 정의 (Field Definitions)
@@ -256,96 +258,77 @@ bus transaction alignment
 
 정렬 규칙은 bitwidth_memory_mapping.md 및 dma_timing_spec.md에서 상세히 다룸.
 
-4.9 stride
-타입: null 또는 int[]
+### 4.9 `stride`
 
-의미:
+- **타입:** null 또는 int[]  
+- **의미:** 메모리 상에서의 stride (byte 단위 or element 단위)  
 
-메모리 상에서의 stride (byte 단위 or element 단위)
-
-보통 dense layout에서는 null 또는 단순 계산 가능
-
-패딩/서브샘플링/2D tile load 등에서 stride 정보가 필요할 수 있음
-
-초기 버전에서는 null 또는 간단한 case만 지원해도 되며,
+보통 dense layout에서는 `null` 또는 단순 계산 가능.  
+패딩/서브샘플링/2D tile load 등에서 stride 정보가 필요할 수 있다.  
+초기 버전에서는 null 또는 간단한 case만 지원해도 되며,  
 심화 버전에서 2D/ND stride를 명시적으로 지원할 수 있다.
 
-4.10 producer
-타입: string 또는 null
+### 4.10 `producer`
 
-의미:
+- **타입:** string 또는 null  
+- **의미:** 이 텐서를 생성한 LayerIR의 id  
+  - 입력 텐서(모델 입력, 상수 등)의 경우 `null`.  
+  - 시뮬레이터에서 layer별 latency breakdown, dataflow 분석 등에 활용.  
 
-이 텐서를 생성한 LayerIR의 id
+### 4.11 `consumers`
 
-입력 텐서(모델 입력, 상수 등)의 경우 null
+- **타입:** string[]  
+- **의미:** 이 텐서를 소비하는 LayerIR의 id 리스트  
 
-시뮬레이터에서 layer별 latency breakdown, dataflow 분석 등에 활용.
+**예**
 
-4.11 consumers
-타입: string[]
+- Q/K/V projection에 들어가는 hidden state → 여러 레이어의 consumer로 사용 가능.  
+- Static scheduler는 producer/consumer 관계를 기반으로 데이터 의존성을 판단한다.  
 
-의미:
+### 4.12 `storage_class`
 
-이 텐서를 소비하는 LayerIR의 id 리스트
+- **타입:** string  
+- **허용 값:**
+  - `"DRAM"`: 일반 activation/kv 등이 DRAM 상에 상주  
+  - `"SPM"`: 특정 텐서가 SPM에만 존재 (예: 타일화된 중간 결과)  
+  - `"CONST"`: weight/embedding 등 변하지 않는 상수 텐서  
 
-예:
+`storage_class`는 다음에 영향을 준다.
 
-Q/K/V projection에 들어가는 hidden state → 여러 레이어의 consumer로 사용 가능
+- DMA가 필요한지 여부 (DRAM↔SPM 이동).  
+- 시뮬레이터에서 DRAM traffic으로 계산할지 여부.  
+- KV cache/embedding 등 장기 상주 텐서의 관리 방식.  
 
-Static scheduler는 producer/consumer 관계를 기반으로
-데이터 의존성을 판단한다.
+### 4.13 `metadata` (확장 메타데이터)
 
-4.12 storage_class
-타입: string
+- **타입:** object (key-value)  
 
-허용 값:
+**예**
 
-"DRAM": 일반 activation/kv 등이 DRAM 상에 상주
-
-"SPM": 특정 텐서가 SPM에만 존재 (예: 타일화된 중간 결과)
-
-"CONST": weight/embedding 등 변하지 않는 상수 텐서
-
-storage_class는 다음에 영향:
-
-DMA가 필요한지 여부 (DRAM↔SPM 이동)
-
-시뮬레이터에서 DRAM traffic으로 계산할지 여부
-
-KV cache/embedding 등 장기 상주 텐서의 관리 방식
-
-4.13 metadata (확장 메타데이터)
-타입: object (key-value)
-
-예:
-
-json
-Copy code
+```json
 "metadata": {
   "is_kv_head_split": true,
-  "semantic": "k",      // q, k, v, logits, hidden, ...
+  "semantic": "k",
   "notes": "layer_3 head_0 KV cache",
   "origin": "onnx://encoder.block.3.k_proj.weight"
 }
-semantic:
+```
 
-텐서의 의미를 추가적으로 설명하기 위한 태그
+- `semantic`: 텐서의 의미를 추가적으로 설명하기 위한 태그  
+  - 예: `"q"`, `"k"`, `"v"`, `"logits"`, `"hidden"`, `"residual"`, `"embedding"` 등.  
+- `is_kv_head_split`: KV cache가 head dimension 기준으로 쪼개져 있는지 여부  
+  - tile planner가 head-parallelism을 사용할 때 활용 가능.  
 
-예: "q", "k", "v", "logits", "hidden", "residual", "embedding" 등
-
-is_kv_head_split:
-
-KV cache가 head dimension 기준으로 쪼개져 있는지 여부
-
-tile planner가 head-parallelism을 사용할 때 활용 가능
-
-이 영역은 run-time/분석 도구에서 자유롭게 확장 가능하나,
+이 영역은 run-time/분석 도구에서 자유롭게 확장 가능하나,  
 핵심 파이프라인(타일링/스케줄링)이 이 필드에 의존하지 않도록 설계하는 것이 원칙이다.
 
-5. Tensor 종류별 메타데이터 예시
-5.1 일반 MLP Weight 텐서
-json
-Copy code
+---
+
+## 5. Tensor 종류별 메타데이터 예시
+
+### 5.1 일반 MLP Weight 텐서
+
+```json
 {
   "id": "w_ffn1",
   "name": "ffn_block1_weight",
@@ -353,7 +336,7 @@ Copy code
   "shape": [4096, 1024],
   "dtype": "int4",
   "qbits": 4,
-  "layout": "[N, K]",          // N: out_dim, K: in_dim
+  "layout": "[N, K]",
   "alignment_bytes": 32,
   "stride": null,
   "producer": null,
@@ -364,14 +347,16 @@ Copy code
     "notes": ""
   }
 }
-5.2 Hidden Activation 텐서 (Transformer 블록)
-json
-Copy code
+```
+
+### 5.2 Hidden Activation 텐서 (Transformer 블록)
+
+```json
 {
   "id": "hidden_3",
   "name": "block3_hidden",
   "role": "activation",
-  "shape": [1, 128, 4096],      // [B, T, H]
+  "shape": [1, 128, 4096],
   "dtype": "int8",
   "qbits": 8,
   "layout": "[B, T, H]",
@@ -385,14 +370,16 @@ Copy code
     "notes": ""
   }
 }
-5.3 KV Cache 텐서
-json
-Copy code
+```
+
+### 5.3 KV Cache 텐서
+
+```json
 {
   "id": "kv_cache_layer3_head0",
   "name": "kv_cache.l3.h0",
   "role": "kv",
-  "shape": [1, 1, 128, 64],     // [B, H(=1), T, D]
+  "shape": [1, 1, 128, 64],
   "dtype": "int4",
   "qbits": 4,
   "layout": "[B, H, T, D]",
@@ -407,14 +394,16 @@ Copy code
     "notes": "KV cache for layer 3, head 0"
   }
 }
-5.4 Embedding 텐서
-json
-Copy code
+```
+
+### 5.4 Embedding 텐서
+
+```json
 {
   "id": "tok_embedding",
   "name": "token_embedding_table",
   "role": "embedding",
-  "shape": [32000, 4096],       // vocab_size, hidden_dim
+  "shape": [32000, 4096],
   "dtype": "fp16",
   "qbits": 16,
   "layout": "[V, H]",
@@ -428,95 +417,96 @@ Copy code
     "notes": "shared token embedding"
   }
 }
-6. Tensor Metadata와 다른 스펙 간 관계
+```
+
+---
+
+## 6. Tensor Metadata와 다른 스펙 간 관계
+
 Tensor 메타데이터는 다음 스펙들과 밀접하게 연동된다.
 
-6.1 npu_ir_spec.md
-LayerIR의 inputs / outputs는 TensorIR의 id를 참조
+### 6.1 `npu_ir_spec.md`
 
-IR에서 layer-level shape / qbits / role 등은 TensorIR와 반드시 일관돼야 함
+- LayerIR의 `inputs` / `outputs`는 TensorIR의 `id`를 참조.  
+- IR에서 layer-level shape / qbits / role 등은 TensorIR와 반드시 일관돼야 함.  
 
-6.2 quantization_ir_extension.md
-qbits 필드는 quantization extension에서 정의한 정책을 기반으로 설정
+### 6.2 `quantization_ir_extension.md`
 
-LayerIR-level qbits 필드와 TensorIR-level qbits 필드는 서로 상응해야 함
+- `qbits` 필드는 quantization extension에서 정의한 정책을 기반으로 설정.  
+- LayerIR-level qbits 필드와 TensorIR-level qbits 필드는 서로 상응해야 함.  
+- bitwidth 변화 실험 시 TensorIR의 `qbits` 변경이 DMA/Timing/Trace에 모두 반영.  
 
-bitwidth 변화 실험 시 TensorIR의 qbits 변경이 DMA/Timing/Trace에 모두 반영
+### 6.3 `bitwidth_memory_mapping.md`
 
-6.3 bitwidth_memory_mapping.md
-shape + dtype + qbits + alignment_bytes를 조합하여
-total bytes, transaction 수, burst 수 등을 계산
+- `shape + dtype + qbits + alignment_bytes`를 조합하여  
+  `total bytes`, transaction 수, burst 수 등을 계산.  
+- DMA Timing, SPM capacity, bandwidth 모델에 직접 사용됨.  
 
-DMA Timing, SPM capacity, bandwidth 모델에 직접 사용됨
+### 6.4 `dma_timing_spec.md`, `te_timing_spec.md`, `ve_timing_spec.md`
 
-6.4 dma_timing_spec.md, te_timing_spec.md, ve_timing_spec.md
-DMA: Tensor의 요소 수 및 qbits → total bytes → latency
+- DMA: Tensor의 요소 수 및 `qbits` → total bytes → latency.  
+- TE/VE: `qbits`를 이용한 internal compute 패턴(예: packed int4)의 latency 모델링에 활용 가능.  
 
-TE/VE: qbits를 이용한 internal compute 패턴(예: packed int4)의 latency 모델링에 활용 가능
+---
 
-7. 정렬(Alignment) 및 패딩(Padding) 규칙 개요
-정확한 규칙은 bitwidth_memory_mapping.md에서 정의되지만,
+## 7. 정렬(Alignment) 및 패딩(Padding) 규칙 개요
+
+정확한 규칙은 `bitwidth_memory_mapping.md`에서 정의되지만,  
 Tensor Metadata에서 alignment 개념은 다음과 같이 사용된다.
 
-alignment_bytes는 DRAM 주소 정렬에 사용
+- `alignment_bytes`는 DRAM 주소 정렬에 사용.  
+- tile-level DMA load/store 시:
+  - 시작 주소가 `alignment_bytes`의 배수인지 확인.  
+  - 필요시 padding 영역이 발생할 수 있음.  
+- SPMAllocator는 bank/offset 계산 시 alignment를 고려.  
+- 패딩된 부분의 실제 수치는 시뮬레이터가 고려하지 않고,  
+  단지 bytes/latency 측면에서만 영향을 준다고 가정할 수 있다.  
 
-tile-level DMA load/store 시:
+---
 
-시작 주소가 alignment_bytes의 배수인지 확인
+## 8. Validation 규칙 (사전 검증)
 
-필요시 padding 영역이 발생할 수 있음
-
-SPMAllocator는 bank/offset 계산 시 alignment를 고려
-
-패딩된 부분의 실제 수치는 시뮬레이터가 고려하지 않고,
-단지 bytes/latency 측면에서만 영향을 준다고 가정할 수 있다.
-
-8. Validation 규칙 (사전 검증)
 Tensor 메타데이터는 IR 생성/로딩 시 다음을 검사하는 것이 바람직하다.
 
-id uniqueness
-
-shape와 layout의 consistency
-
-qbits가 지원 범위(예: {2,4,8,16}) 내에 있는지
-
-role과 storage_class 조합이 타당한지
-
-weight/embedding → CONST가 일반적
-
-activation/kv → DRAM이 일반적
-
-producer/consumers 관계가 실제 Graph와 일치하는지
+- `id` uniqueness.  
+- `shape`와 `layout`의 consistency.  
+- `qbits`가 지원 범위(예: `{2,4,8,16}`) 내에 있는지.  
+- `role`과 `storage_class` 조합이 타당한지.  
+  - weight/embedding → CONST가 일반적.  
+  - activation/kv → DRAM이 일반적.  
+- `producer`/`consumers` 관계가 실제 Graph와 일치하는지.  
 
 해당 검증 로직은 별도의 validator 모듈에서 구현할 수 있다.
 
-9. 확장성 (Extensibility)
+---
+
+## 9. 확장성 (Extensibility)
+
 Tensor Metadata 스펙은 다음과 같은 확장을 염두에 두고 설계되었다.
 
-새로운 role: "mask", "attention_bias", "rotary_factor" 등
+- 새로운 `role`: `"mask"`, `"attention_bias"`, `"rotary_factor"` 등.  
+- 새로운 `dtype`/`qbits`: `fp8`, `bfloat16`, `int1` 등.  
+- sparsity 관련 필드: sparsity pattern, block size 등.  
+- 압축(compression) 정보: RLE/entropy coding에 대한 메타데이터.  
 
-새로운 dtype/qbits: fp8, bfloat16, int1 등
-
-sparsity 관련 필드: sparsity pattern, block size 등
-
-압축(compression) 정보: RLE/entropy coding에 대한 메타데이터
-
-이러한 확장은 기존 필드의 의미를 변경하지 않고
+이러한 확장은 기존 필드의 의미를 변경하지 않고  
 새로운 필드를 추가하는 방식으로 진행해야 한다.
 
-10. 결론 (Summary)
-tensor_metadata_spec.md는 NPU IR에서 사용되는 모든 텐서에 대해:
+---
 
-shape / dtype / layout / role / qbits / storage / alignment
+## 10. 결론 (Summary)
+
+`tensor_metadata_spec.md`는 NPU IR에서 사용되는 모든 텐서에 대해:
+
+- `shape / dtype / layout / role / qbits / storage / alignment`  
+
 을 일관된 방식으로 정의하는 핵심 스펙 문서이다.
 
 이 메타데이터는:
 
-IR Graph의 구조적 일관성을 보장하고
-
-Tiling/SPM allocation/Scheduling의 기반 정보를 제공하며
-
-DMA/Timing/Trace/Visualization에 이르는 모든 단계에서 사용된다.
+- IR Graph의 구조적 일관성을 보장하고  
+- Tiling / SPM allocation / Scheduling의 기반 정보를 제공하며  
+- DMA / Timing / Trace / Visualization에 이르는 모든 단계에서 사용된다.  
 
 따라서, Tensor 메타데이터 스펙은
 **NPU 시뮬레이터와 오프라인 컴파일러 전체의 공통 언어(common language)**로서

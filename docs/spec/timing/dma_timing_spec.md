@@ -33,18 +33,14 @@ DMAEngine은 다음과 같은 구조로 동작한다.
 
 CMDQ → DMAEngine → DRAM/Bus Model → SPM
 
-pgsql
-Copy code
-
 DMA LOAD/STORE 명령의 timing은 다음 요소로 결정된다:
 
+```text
 latency = address_alignment_penalty
-+ burst_transfer_latency
-+ bus_contention_penalty
-+ sram_conflict_penalty
-
-yaml
-Copy code
+        + burst_transfer_latency
+        + bus_contention_penalty
+        + sram_conflict_penalty
+```
 
 각 요소는 이후 섹션에서 공식적으로 정의한다.
 
@@ -74,21 +70,19 @@ DMA timing 계산은 CMDQ의 다음 필드를 기반으로 한다.
 
 DMAEngine은 bitwidth 기반으로 실제 전송 bytes를 계산한다.
 
+```text
 bytes = ceil((num_elements * qbits) / 8)
-
-shell
-Copy code
+```
 
 ### 4.1 Alignment 적용
 
 DMA는 DRAM access alignment에 영향을 받는다.
 
+```text
 aligned_start = align(dram_addr, alignment_bytes)
-aligned_end = align(dram_addr + bytes, alignment_bytes)
+aligned_end   = align(dram_addr + bytes, alignment_bytes)
 bytes_aligned = aligned_end - aligned_start
-
-yaml
-Copy code
+```
 
 alignment_bytes는 Tensor Metadata에서 제공한다  
 (`tensor_metadata_spec.md` 참고).
@@ -119,17 +113,15 @@ DMAEngine은 DRAM burst 기반 latency 모델을 사용한다.
 
 ### Burst 수 계산
 
+```text
 num_bursts = ceil(bytes_aligned / bus_width_bytes)
-
-shell
-Copy code
+```
 
 ### DRAM burst latency
 
+```text
 latency_burst = num_bursts * dram_burst_cycles
-
-yaml
-Copy code
+```
 
 `dram_burst_cycles`는 DRAM timing parameter  
 (tRCD/tCL/tRP 등을 추상화한 평균 latency)로 정의된다.
@@ -140,26 +132,23 @@ Copy code
 
 버스트 기반 모델 외에도 비율 기반 latency 모델을 함께 사용한다.
 
+```text
 latency_bw = bytes_aligned / peak_bw_bytes_per_cycle
-
-arduino
-Copy code
+```
 
 실제 DMA latency는 두 모델의 합 또는 max 값을 사용한다.
 
 ### 옵션 A: Conservative (max)
 
+```text
 dma_latency_raw = max(latency_burst, latency_bw)
-
-shell
-Copy code
+```
 
 ### 옵션 B: Hybrid (합산)
 
+```text
 dma_latency_raw = latency_burst + latency_bw
-
-yaml
-Copy code
+```
 
 초기 버전에서는 A(max) 방식을 사용한다.  
 (모던 NPU 문헌에서 conservative 모델이 일반적)
@@ -190,13 +179,10 @@ Bus contention 모델이 포함되어야 한다.
 
 ### 7.2 Contention penalty 공식
 
-dma_latency_cont = dma_latency_raw * contention_factor
-
-Copy code
-contention_factor = active_dma_count
-
-pgsql
-Copy code
+```text
+dma_latency_cont   = dma_latency_raw * contention_factor
+contention_factor  = active_dma_count
+```
 
 즉, 두 DMA가 동시에 active면  
 latency는 대략 2배 증가.
@@ -216,19 +202,17 @@ SPM은 banked 구조이며, 다음 규칙을 따른다:
 
 ### 8.1 Bank conflict penalty
 
+```text
 spm_conflict_penalty = num_conflicts * spm_conflict_cycles
-
-markdown
-Copy code
+```
 
 `num_conflicts`는 address stride, tile shape, qbits 크기로부터 추론 가능.
 
 ### 8.2 DMA latency에 결합
 
+```text
 dma_latency_final = dma_latency_cont + spm_conflict_penalty
-
-yaml
-Copy code
+```
 
 ---
 
@@ -264,61 +248,61 @@ DMAEngine은 timing만 계산한다.
   "spm_bank": 2,
   "spm_offset": 1024
 }
+```
+
 계산 과정
+
+```text
 bytes = 4096 * 4 / 8 = 2048 bytes
+```
 
 alignment (32B) → 2048 → 2048 bytes
 
-num_bursts = ceil(2048 / 32) = 64
-
-DRAM burst latency = 64 * dram_burst_cycles
-
+num_bursts               = ceil(2048 / 32) = 64
+DRAM burst latency       = 64 * dram_burst_cycles
 bandwidth-limited latency = 2048 / peak_bw
+contention_factor        = active_dma_count
 
-contention_factor = active_dma_count
+최종 latency:
 
-최종 latency
-lua
-Copy code
+```text
 dma_latency_final =
     max(burst_latency, bw_latency)
   * contention_factor
   + spm_conflict_penalty
-11. Cycle-based 동작 모델
+```
+
+# 11. Cycle-based 동작 모델
 DMAEngine은 시뮬레이터의 global cycle loop에서 다음과 같이 동작한다.
 
-sql
-Copy code
+```text
 for cycle in global_cycle:
     if dma_queue not empty:
         current_dma.progress(cycle)
     if dma finished:
         emit completion event
+```
 DMA 요청은 아래 상태를 가진다.
 
-Ready
-
-Allocated
-
-Transferring
-
-Waiting (SPM conflict or bus blocking)
-
-Completed
+- Ready  
+- Allocated  
+- Transferring  
+- Waiting (SPM conflict or bus blocking)  
+- Completed  
 
 TraceEngine은 각 DMA 명령의 start/end cycle을 기록한다.
 
-12. DRAM Traffic Trace
+# 12. DRAM Traffic Trace
 DMAEngine은 DRAM traffic을 다음 형태로 기록한다:
 
-json
-Copy code
+```json
 {
   "cycle": 12345,
   "type": "read" | "write",
   "bytes": 32,
   "dram_addr": 12000
 }
+```
 이 정보는 다음 분석에 사용된다.
 
 DRAM bandwidth heatmap
@@ -329,17 +313,17 @@ bitwidth 변경 시 traffic 변화량 분석
 
 transformer workload profiling
 
-13. SPM Trace
+# 13. SPM Trace
 SPM은 bank 충돌 정보와 access timeline을 trace로 기록한다:
 
-json
-Copy code
+```json
 {
   "cycle": 12348,
   "bank": 2,
   "bytes": 32,
   "direction": "write"
 }
+```
 이 정보는:
 
 SPM bank conflict heatmap
@@ -350,7 +334,7 @@ SPM 용량 조정
 
 등에 사용된다.
 
-14. DMA Timing 검증 규칙
+# 14. DMA Timing 검증 규칙
 시뮬레이터는 DMA timing을 다음 규칙으로 사전 검증해야 한다.
 
 bytes > 0
@@ -369,7 +353,7 @@ DRAM address가 0 이상인지
 
 오류 발생 시 CMDQ invalid 에러 출력 후 종료.
 
-15. 확장성 (Extensibility)
+# 15. 확장성 (Extensibility)
 DMA timing 스펙은 다음을 염두에 두고 설계되었다.
 
 multi-channel DRAM (channel interleaving)
@@ -390,7 +374,7 @@ HBM 기반 구조 확장
 기존 공식(latency = burst + bw + contention + spm)을 변경하지 않고
 새로운 penalty term 또는 scaling factor로 확장해야 한다.
 
-16. 결론 (Summary)
+# 16. 결론 (Summary)
 본 문서는 DMAEngine의 timing을 결정하는 모든 요소를 정의했다.
 
 핵심 요약:
@@ -413,4 +397,3 @@ DMAEngine timing 모델은
 NPU Simulator의 전체 accuracy를 결정하는 핵심 요소 중 하나이며,
 특히 LLM workloads에서 DRAM → KV Cache traffic이 latency의 주요 병목이므로
 본 스펙은 LLM-centric NPU 시뮬레이터에서 필수적이다.
-

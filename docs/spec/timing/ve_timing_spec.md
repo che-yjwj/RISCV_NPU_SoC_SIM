@@ -76,13 +76,12 @@ VE 연산은 크게 다음 3단계를 포함한다.
 
 이를 다음과 같이 추상화하여 latency를 계산한다.
 
+```text
 total_cycles = init_cycles
-+ elementwise_cycles
-+ reduction_cycles
-+ finalize_cycles
-
-perl
-Copy code
+             + elementwise_cycles
+             + reduction_cycles
+             + finalize_cycles
+```
 
 각 항목은 연산 종류에 따라 달라지며, 아래 섹션에서 상세히 정의한다.
 
@@ -106,10 +105,9 @@ VE Timing Model의 핵심 구성 요소이다.
 
 SIMD 구조이므로 processing rate는 다음으로 표현된다.
 
+```text
 ops_per_cycle_eff = lanes × ops_per_lane_factor × f_a(qbits)
-
-yaml
-Copy code
+```
 
 ---
 
@@ -128,10 +126,9 @@ activation bitwidth(qbits_activation)는 VE 처리율에 영향을 줄 수 있�
 → low-bit activation은 더 많은 요소를 한 cycle에 처리할 수 있다고 가정  
 (정확한 scaling은 하드웨어 설정에 따라 결정 가능)
 
+```text
 ops_per_cycle_eff = lanes × ops_per_lane_factor × f_a(qbits_activation)
-
-yaml
-Copy code
+```
 
 ---
 
@@ -141,10 +138,9 @@ Copy code
 
 ## 7.1 Element-wise latency 공식
 
+```text
 elementwise_cycles = ceil( length / ops_per_cycle_eff )
-
-markdown
-Copy code
+```
 
 예:
 
@@ -164,13 +160,11 @@ Softmax, GELU 등은 SFU를 포함한 element-wise pipeline이 존재한다.
 
 SFU latency를 고려하여 다음과 같이 계산한다.
 
+```text
 elementwise_cycles_sfu =
-elementwise_cycles
-
-sfu_latency(op_type)
-
-yaml
-Copy code
+    elementwise_cycles
+  + sfu_latency(op_type)
+```
 
 - Softmax → exp → `sfu_latency_exp`  
 - LayerNorm → rsqrt → `sfu_latency_rsqrt`
@@ -191,12 +185,11 @@ LayerNorm, RMSNorm, Softmax는 reduction 연산을 포함한다.
 
 Reduction은 일반적으로 트리 기반 reduction pipeline으로 처리되므로 다음과 같이 추상화한다.
 
-reduction_cycles
-= reduction_pipeline_latency
-+ ceil( log2(length) )
-
-yaml
-Copy code
+```text
+reduction_cycles =
+    reduction_pipeline_latency
+  + ceil(log2(length))
+```
 
 `reduction_pipeline_latency`는 pipeline depth이며  
 `ceil(log2(length))`는 tree reduction 단계 수에 해당한다.
@@ -217,20 +210,19 @@ element-wise 패스와 동일한 처리 모델을 사용할 수 있다.
 
 예:
 
+```text
 finalize_cycles = ceil( length / ops_per_cycle_eff )
-
-Copy code
+```
 
 LayerNorm은 다음 형태가 된다.
 
+```text
 LN total cycles =
-init_cycles
-+ (mean+var reduction)
-+ (normalize pass)
-+ finalize_cycles
-
-yaml
-Copy code
+    init_cycles
+  + (mean + var reduction)
+  + (normalize pass)
+  + finalize_cycles
+```
 
 ---
 
@@ -244,29 +236,24 @@ Copy code
 
 LayerNorm tile latency는 다음 공식으로 계산한다.
 
+```text
 LN_cycles =
-init_cycles
-+ reduction_cycles // mean/variance
-+ elementwise_cycles_normalize // (x - mean) / sqrt(var + eps)
-+ finalize_cycles
-
-Copy code
+    init_cycles
+  + reduction_cycles          // mean/variance
+  + elementwise_cycles_normalize // (x - mean) / sqrt(var + eps)
+  + finalize_cycles
+```
 
 정식 표현:
 
+```text
 LN_cycles =
-init_cycles
-
-reduction_pipeline_latency
-
-ceil(log2(length))
-
-ceil(length / ops_per_cycle_eff)
-
-finalize_cycles
-
-yaml
-Copy code
+    init_cycles
+  + reduction_pipeline_latency
+  + ceil(log2(length))
+  + ceil(length / ops_per_cycle_eff)
+  + finalize_cycles
+```
 
 ---
 
@@ -274,19 +261,14 @@ Copy code
 
 LayerNorm과 유사하나 **variance만** 필요:
 
+```text
 RMSNorm_cycles =
-init_cycles
-
-reduction_pipeline_latency // variance만
-
-ceil(log2(length))
-
-ceil(length / ops_per_cycle_eff)
-
-finalize_cycles
-
-yaml
-Copy code
+    init_cycles
+  + reduction_pipeline_latency // variance만
+  + ceil(log2(length))
+  + ceil(length / ops_per_cycle_eff)
+  + finalize_cycles
+```
 
 ---
 
@@ -301,20 +283,15 @@ Softmax tile 연산은 다음 단계를 거친다.
 
 정식 latency:
 
+```text
 Softmax_cycles =
-init_cycles
-+ (max reduction)
-→ reduction_pipeline_latency + ceil(log2(length))
-+ (exp pass)
-→ ceil(length / ops_per_cycle_eff) + sfu_latency_exp
-+ (sum reduction)
-→ reduction_pipeline_latency + ceil(log2(length))
-+ (normalize)
-→ ceil(length / ops_per_cycle_eff)
-+ finalize_cycles
-
-yaml
-Copy code
+    init_cycles
+  + (max reduction)
+  + (exp pass)
+  + (sum reduction)
+  + (normalize)
+  + finalize_cycles
+```
 
 ---
 
@@ -322,17 +299,13 @@ Copy code
 
 GELU(x)는 고비용 SFU(exp/tanh) 기반 모델이므로 다음과 같이 계산한다.
 
+```text
 GELU_cycles =
-init_cycles
-
-ceil(length / ops_per_cycle_eff)
-
-sfu_latency_gelu // (erf/tanh 기반)
-
-finalize_cycles
-
-yaml
-Copy code
+    init_cycles
+  + ceil(length / ops_per_cycle_eff)
+  + sfu_latency_gelu // (erf/tanh 기반)
+  + finalize_cycles
+```
 
 두 pass로 나누어도 되고, 하나의 SFU latency term으로 단순화해도 된다.
 
@@ -349,28 +322,27 @@ NPU는 일반적으로 여러 개의 VE를 포함하며
 ve_state[ve_id]:
     busy_until_cycle
     current_op
-운영 규칙
-CMDQ의 VE_*_TILE 명령이 들어옴
+```
 
-deps_before 충족 시 issue 가능
-
-해당 ve_id의 busy_until_cycle <= current_cycle이면 issue
+운영 규칙  
+CMDQ의 VE_*_TILE 명령이 들어옴  
+deps_before 충족 시 issue 가능  
+해당 ve_id의 busy_until_cycle <= current_cycle이면 issue  
 
 issue 시:
 
+```text
 start_cycle = current_cycle
-
-end_cycle = current_cycle + VE_cycles
-
+end_cycle   = current_cycle + VE_cycles
 busy_until_cycle = end_cycle
+```
 
 TE timing과 유사하나, 연산 종류와 latency 모델이 다르다.
 
-12. VE Timing Trace
+# 12. VE Timing Trace
 TraceEngine은 VE tile 실행 시 아래 정보를 기록한다.
 
-json
-Copy code
+```json
 {
   "engine": "VE",
   "id": 1,
@@ -382,17 +354,16 @@ Copy code
   "start_cycle": 123456,
   "end_cycle": 123504
 }
+```
+
 이는 아래 분석에 활용된다.
 
-VE utilization
+- VE utilization  
+- LN/Softmax 병목 분석  
+- sequence length 변화 시 latency scaling  
+- multi-VE load balance  
 
-LN/Softmax 병목 분석
-
-sequence length 변화 시 latency scaling
-
-multi-VE load balance
-
-13. VE Timing 검증 규칙
+# 13. VE Timing 검증 규칙
 시뮬레이터는 VE 명령 처리 전 다음을 검증한다.
 
 length > 0
@@ -407,7 +378,7 @@ multi-VE 환경에서 ve_id가 범위를 벗어나지 않는지
 
 검증 실패 시 CMDQ invalid 에러를 출력하고 시뮬레이션을 종료한다.
 
-14. 확장성 (Extensibility)
+# 14. 확장성 (Extensibility)
 VE timing spec은 다음 확장을 고려하고 있다.
 
 rotary embedding → sin/cos 기반 SFU 연산 추가
@@ -425,7 +396,7 @@ vector gather/scatter DMA와 결합된 hybrid VE ops
 새 기능 추가 시 기존 공식의 구조를 유지하며
 elementwise/reduction/SFU/pass 단위의 latency term을 더하는 방식으로 확장해야 한다.
 
-15. 결론 (Summary)
+# 15. 결론 (Summary)
 ve_timing_spec.md는 NPU Simulator의 Vector Engine timing 모델을 정의하는 문서로서
 Transformer/LLM 핵심 연산(LayerNorm, Softmax, GELU 등)의 정확한 tile-level latency 계산을 제공한다.
 
@@ -446,4 +417,3 @@ TraceEngine과 결합하여 VE 타일의 성능 병목 분석 가능
 이 스펙은 VE 동작 모델의 기준(reference)이며,
 새로운 LLM 연산이나 bitwidth 스키마가 추가될 때
 본 문서를 기반으로 확장해야 한다.
-

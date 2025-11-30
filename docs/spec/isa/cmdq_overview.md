@@ -342,13 +342,16 @@ CMDQ는 **xNPU ISA의 고수준 명령어 표현체**이며,
   { "opcode": "DMA_STORE_TILE", "tensor_role": "activation", "qbits": 8, "dram_addr": 3000 },
   { "opcode": "END" }
 ]
+```
+
 각 명령은:
 
 특정 엔진에 의해 실행되고
 
 timing/latency/bandwidth trace를 생성하게 된다.
 
-13. CMDQ가 갖는 장점 (Advantages)
+# 13. CMDQ가 갖는 장점 (Advantages)
+
 ✔ 개발자와 아키텍트에게
 분석/프로파일링에 매우 유리
 
@@ -371,7 +374,7 @@ KV cache 크기/traffic 변화가 명확히 보임
 
 attention/head parallelism 효과가 쉽게 보임
 
-14. CMDQ 확장성 (Extensibility)
+# 14. CMDQ 확장성 (Extensibility)
 CMDQ는 “spec-driven 확장”을 원칙으로 한다.
 
 새 TE/VE 엔진이 도입되면 새로운 opcode 추가 가능
@@ -388,7 +391,7 @@ encoder/decoder LLM 구조에 각각 특화된 tile opcode 추가 가능
 
 기존 명령의 의미는 바꾸지 않고, 새로운 용도는 새로운 opcode로 정의한다.
 
-15. 결론 (Summary)
+# 15. 결론 (Summary)
 cmdq_overview.md는 CMDQ의 전체 개념과 실행 모델을 정의하는
 ISA 레이어의 최상위 문서이다.
 
