@@ -1,0 +1,1127 @@
+1. docs/overview/ 폴더
+<!-- docs/overview/system_architecture.md -->
+
+# System Architecture
+
+**Status**: Draft  
+**Owner**: TBD  
+**Last Updated**: YYYY-MM-DD
+
+## 1. 목적 (Purpose)
+
+이 문서는 NPU Simulator & Compiler 플랫폼의 전체 시스템 아키텍처를 정의한다.  
+Host CPU, Offline Compiler, NPU Simulator Core, Visualizer 간의 경계와 책임을 명시한다.
+
+## 2. 상위 블록 다이어그램
+
+> TODO: ASCII / 그림 다이어그램 추가
+
+- Host CPU (RISC-V 기반)
+- Offline Compiler
+- NPU Core Simulator
+- Visualization / Profiler
+
+## 3. 주요 컴포넌트 개요
+
+### 3.1 Host CPU (RISC-V)
+
+- 역할:
+  - NPU Launch
+  - CSR/MMIO 접근
+  - 테스트 드라이버/벤치마크 실행
+
+### 3.2 Offline Compiler
+
+- ONNX → IR → TileGraph → CMDQ 생성
+
+### 3.3 NPU Simulator Core
+
+- Control FSM, CMDQ Executor, DMA/TE/VE/SPM/Bus 모델
+
+### 3.4 Visualizer
+
+- Gantt Chart, Bandwidth Heatmap, Utilization 등
+
+## 4. 데이터 플로우 개요
+
+> TODO: 단계별 화살표 다이어그램 추가
+
+## 5. 설계 원칙
+
+- Spec Driven Development
+- 모듈 간 명확한 인터페이스
+- IR/CMDQ/Trace 포맷을 중심으로 한 느슨한 결합
+
+## 6. 향후 확장
+
+- LLM-oriented dynamic scheduling
+- 새로운 ISA/엔진 추가 시 아키텍처 영향 범위
+
+<!-- docs/overview/dataflow_overview.md -->
+
+# Dataflow Overview
+
+**Status**: Draft  
+**Owner**: TBD  
+
+## 1. 목적
+
+이 문서는 모델 입력(ONNX)부터 시뮬레이션 결과(Trace/Visualization)까지의 전체 데이터 흐름을 정의한다.
+
+## 2. End-to-End 파이프라인
+
+1. ONNX 모델 로딩
+2. IR 변환
+3. Tiling / SPM 할당
+4. Static Scheduling
+5. CMDQ 생성
+6. NPU 시뮬레이션
+7. Trace 수집 및 시각화
+
+## 3. 주요 데이터 구조
+
+- ONNX Graph
+- NPU IR (LayerIR, TensorIR)
+- TileGraph
+- CMDQ (Command Queue)
+- Trace (Timeline, Bandwidth, Utilization)
+
+## 4. 각 단계의 입력/출력 요약
+
+> TODO: 표 형식으로 입력/출력 타입 정의
+
+## 5. Error / Logging Path
+
+> TODO: 에러 전파 및 로깅 전략 정의
+
+<!-- docs/overview/module_responsibilities.md -->
+
+# Module Responsibilities
+
+**Status**: Draft  
+
+## 1. 목적
+
+각 모듈의 Responsibility를 명확히 정의하여, 구현 시 경계를 분리하고 의존성을 최소화한다.
+
+## 2. 모듈 리스트
+
+- IRBuilder
+- TilingPlanner
+- SPMAllocator
+- StaticScheduler
+- CMDQGenerator
+- NPUSimulatorCore
+- DMAEngine / TensorEngine / VectorEngine
+- Visualizer
+
+## 3. 모듈별 Responsibility
+
+> TODO: 각 모듈에 대해 "Input / Output / Does / Does Not" 4가지 관점으로 표로 정리
+
+## 4. 의존성 규칙
+
+- Compiler ↔ Simulator 간 단방향 의존 (CMDQ 기반)
+- IR 계층은 하위 모듈에 의존하지 않음
+- Trace 포맷은 Simulator Core에 의존하지만, Visualizer 구현에는 독립
+
+## 5. 변경 영향도
+
+> TODO: 모듈 변경 시 영향 받는 다른 모듈 목록 정의
+
+2. docs/spec/ir/ 폴더
+<!-- docs/spec/ir/npu_ir_spec.md -->
+
+# NPU IR Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+NPU 내부에서 사용하는 IR(NPU IR)의 구조, 노드/엣지/텐서 메타데이터를 정의한다.
+
+## 2. 요구사항
+
+- ONNX에서 Lossless 변환 가능
+- Quantization / Tiling / Scheduling 단계에서 사용 가능
+- Layer-level과 Tile-level 모두 표현 가능
+
+## 3. IR 기본 개념
+
+- Graph
+- Node (Op)
+- Edge (Tensor 연결)
+- Tensor Metadata
+
+## 4. Node 스키마
+
+> TODO: 공통 필드 (name, op_type, inputs, outputs, attributes) 명세
+
+## 5. Tensor 스키마
+
+> TODO: shape, dtype, layout, qbits, role(weight/activation/kv) 등 필드 정의
+
+## 6. 예제
+
+> TODO: 간단한 MLP/Conv 레이어 IR JSON 예시 추가
+
+## 7. 버전 관리
+
+> TODO: IR 버전 필드 및 호환성 정책 정의
+
+<!-- docs/spec/ir/quantization_ir_extension.md -->
+
+# Quantization IR Extension Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+레이어별 Weight / Activation / KV Cache bitwidth 설정을 IR에 어떻게 표현할지 정의한다.
+
+## 2. 요구사항
+
+- per-layer bit 설정 가능
+- W/A/KV 각각 독립 bit 설정
+- 향후 per-tensor/per-channel 확장 가능
+
+## 3. 확장 필드 정의
+
+- `qbits_weight`
+- `qbits_activation`
+- `qbits_kv`
+
+## 4. Annotator 동작
+
+> TODO: QConfig → LayerIR 매핑 규칙 정의
+
+## 5. 예제
+
+> TODO: Self-Attention, FFN 레이어에 대한 IR + qbits 예시
+
+## 6. 향후 확장
+
+- group-wise / channel-wise quant 지원 시 필드 설계
+
+<!-- docs/spec/ir/tensor_metadata_spec.md -->
+
+# Tensor Metadata Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+Tensor의 모든 메타 정보(shape, dtype, layout, qbits 등)를 일관되게 정의한다.
+
+## 2. 필수 필드
+
+- name
+- shape
+- dtype
+- layout (e.g., NCHW, NHWC, [B, T, H], etc.)
+
+## 3. Quantization 관련 필드
+
+- qbits
+- qtype (weight / activation / kv / other)
+- scale / zero-point (optional, 확장용)
+
+## 4. Alignment / Padding 규칙
+
+> TODO: 메모리 정렬 및 패딩 규칙 정의
+
+## 5. 예제
+
+> TODO: Conv weight, activation, KV cache 텐서 메타데이터 예시
+
+3. docs/spec/isa/ 폴더
+<!-- docs/spec/isa/cmdq_overview.md -->
+
+# Command Queue (CMDQ) Overview
+
+**Status**: Draft  
+
+## 1. 목적
+
+NPU 실행 모델의 핵심인 Command Queue(CMDQ) 개념과 실행 철학을 정의한다.
+
+## 2. 개념
+
+- 정적 스케줄링 결과를 serialize한 명령 스트림
+- NPU 내부 Control FSM이 순차 실행
+- DMA / TE / VE / Sync를 모두 포함
+
+## 3. 실행 모델
+
+> TODO: CMDQ fetch → decode → issue → wait → next 순서 설명
+
+## 4. Host / Compiler / Simulator 간 관계
+
+- Compiler: CMDQ 생성자
+- Host: CMDQ 포인터 전달자
+- Simulator: CMDQ 실행자
+
+## 5. 주요 설계 원칙
+
+- 단순하고 해석 가능한 포맷
+- ISA-like 하지만, 시뮬레이터 친화적인 구조
+
+<!-- docs/spec/isa/cmdq_format_spec.md -->
+
+# CMDQ Format Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+CMDQ 엔트리의 포맷(필드, 타입, 제약조건)을 명확히 정의한다.
+
+## 2. 공통 필드
+
+- opcode
+- layer_id
+- barrier_before / barrier_after
+
+## 3. Opcode별 필드
+
+> TODO: DMA_LOAD_TILE, DMA_STORE_TILE, TE_GEMM_TILE, VE_LNORM_TILE 등별 필드 테이블 정의
+
+## 4. 표현 포맷
+
+- JSON 스키마 정의
+- (옵션) 바이너리 포맷 정의
+
+## 5. 예제
+
+> TODO: 2-layer MLP와 Self-Attention 블록의 CMDQ 예시
+
+## 6. 호환성 / 확장
+
+- 새로운 opcode 추가 규칙
+- 필드 추가 시 backward compatibility 정책
+
+<!-- docs/spec/isa/opcode_set_definition.md -->
+
+# Opcode Set Definition
+
+**Status**: Draft  
+
+## 1. 목적
+
+NPU용 명령어 집합(opcode)을 카테고리별로 정의한다.
+
+## 2. 카테고리
+
+- DMA 관련
+- Tensor Engine 관련
+- Vector Engine 관련
+- Sync / Barrier / Control 관련
+
+## 3. Opcode 리스트
+
+> TODO: 각 opcode에 대해 이름, 설명, 사용 예시, 제약조건을 표로 정의
+
+## 4. Deprecation / 확장 정책
+
+> TODO: opcode 제거/변경 정책 정의
+
+4. docs/spec/timing/ 폴더
+<!-- docs/spec/timing/dma_timing_spec.md -->
+
+# DMA Timing Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+DMA 엔진의 latency / throughput / contention 모델을 공식으로 정의한다.
+
+## 2. 파라미터
+
+- BUS_WIDTH_BITS
+- BURST_BYTES
+- cycles_per_burst
+- base_latency
+- contention_penalty 모델
+
+## 3. 전송량 계산
+
+
+
+total_bits = num_elements * qbits
+total_bytes = total_bits / 8
+burst_transfers = ceil(total_bytes / BURST_BYTES)
+
+
+## 4. Latency 모델
+
+
+
+dma_cycles = base_latency + burst_transfers * cycles_per_burst + contention_penalty
+
+
+## 5. Contention 모델
+
+> TODO: multi-channel / multi-core conflict 모델 정의
+
+## 6. 검증 전략
+
+> TODO: 유닛 테스트/마이크로 벤치마크 설계
+
+<!-- docs/spec/timing/te_timing_spec.md -->
+
+# Tensor Engine (TE) Timing Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+TE(GEMM/Conv)의 latency 모델을 정의한다.
+
+## 2. 파라미터
+
+- MACs per cycle
+- pipeline depth
+- startup latency
+
+## 3. Latency 공식
+
+
+
+mac_ops = M * N * K (또는 Conv 변형)
+cycles = ceil(mac_ops / macs_per_cycle) + pipeline_overhead
+
+
+## 4. Quantization 영향
+
+> TODO: qbits가 TE latency에 미치는 영향(있다면) 정의
+
+## 5. 검증 전략
+
+> TODO: 작은 행렬, 큰 행렬 케이스 테스트 계획
+
+<!-- docs/spec/timing/ve_timing_spec.md -->
+
+# Vector Engine (VE) Timing Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+VE(LayerNorm, Softmax, GELU 등)의 latency 모델을 정의한다.
+
+## 2. 파라미터
+
+- SIMD lanes
+- reduction tree depth
+- SFU latency (exp, rsqrt 등)
+
+## 3. Latency 공식
+
+> TODO: element-wise + reduction + SFU 조합 공식 정의
+
+## 4. LLM 워크로드에서의 사용 패턴
+
+> TODO: LN, RMSNorm, Softmax 예시 추가
+
+## 5. 검증 전략
+
+> TODO: 다양한 길이의 벡터에 대한 latency 비교
+
+<!-- docs/spec/timing/spm_model_spec.md -->
+
+# SPM (Scratchpad Memory) Model Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+SPM 구조, bank, port, conflict 모델을 정의한다.
+
+## 2. 파라미터
+
+- num_banks
+- bank_size_bytes
+- read_ports, write_ports
+- access_latency
+
+## 3. Bank 매핑 규칙
+
+> TODO: 주소/테이터를 bank에 매핑하는 규칙 정의
+
+## 4. Conflict 모델
+
+> TODO: 같은 cycle에 초과 요청 시 stall/penalty 정의
+
+## 5. 검증 전략
+
+> TODO: synthetic traffic 기반 bank 활용도/충돌 패턴 테스트
+
+<!-- docs/spec/timing/bus_and_noc_model.md -->
+
+# Bus and NoC Timing Model Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+DRAM ↔ NPU, NPU 내 NoC/버스의 bandwidth/latency 모델을 정의한다.
+
+## 2. 파라미터
+
+- peak_bandwidth
+- arbitration 정책
+- hop latency
+
+## 3. Traffic 모델
+
+> TODO: DMA/TE/VE에서 발생하는 traffic aggregation 방식 정의
+
+## 4. Contention 모델
+
+> TODO: 동시에 여러 source가 버스를 요청하는 경우의 처리 정의
+
+## 5. 검증 전략
+
+> TODO: single/multi-core, 다양한 traffic pattern 평가 계획
+
+5. docs/spec/quantization/ 폴더
+<!-- docs/spec/quantization/quantization_model_overview.md -->
+
+# Quantization Model Overview
+
+**Status**: Draft  
+
+## 1. 목적
+
+본 프로젝트에서 사용하는 Quantization 모델 전체 철학을 설명한다.
+
+## 2. 지원 범위
+
+- 레이어별 Weight / Activation / KV bit 설정
+- 정적 양자화(Offline) 중심
+- 메모리/대역폭 영향 분석 중심
+
+## 3. 비지원 범위
+
+- QAT(Quantization-Aware Training)
+- Runtime adaptive bitwidth change (초기 버전 기준)
+
+## 4. 설계 원칙
+
+- IR/Spec에 모든 bitwidth 정보를 명시
+- 메모리/타이밍 모델과 강하게 연결
+- Mixed precision 전략 실험에 활용 가능
+
+## 5. 문서 구조
+
+- bitwidth_memory_mapping.md
+- kv_cache_quantization_spec.md
+- mixed_precision_policy.md
+
+<!-- docs/spec/quantization/bitwidth_memory_mapping.md -->
+
+# Bitwidth to Memory Mapping Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+qbits → bytes → memory transactions → latency로 이어지는 수식을 정의한다.
+
+## 2. 기본 수식
+
+
+
+total_bits = num_elements * qbits
+total_bytes = total_bits / 8
+bus_transfer = ceil(total_bits / BUS_WIDTH_BITS)
+burst_count = ceil(total_bytes / BURST_BYTES)
+
+
+## 3. DMA Latency 연계
+
+> TODO: DMA Timing Spec과 링크
+
+## 4. 예제
+
+> TODO: FP32 / INT8 / INT4 비교 테이블
+
+## 5. 검증 전략
+
+> TODO: 시뮬레이터 결과 vs 이론값 비교 방법
+
+<!-- docs/spec/quantization/kv_cache_quantization_spec.md -->
+
+# KV Cache Quantization Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+LLM KV Cache에 대한 별도 bitwidth 설정 및 메모리 모델을 정의한다.
+
+## 2. 요구사항
+
+- KV 텐서는 일반 Activation과 다른 qbits 사용 가능
+- KV bitwidth가 DRAM/SPM footprint에 직접 반영
+- KV Cache growth model과 연동
+
+## 3. IR 필드
+
+- qbits_kv
+- qtype = "kv"
+
+## 4. 메모리 모델 연계
+
+> TODO: KV Cache 전송량/latency 계산식 구체화
+
+## 5. 예제
+
+> TODO: KV 4bit vs 8bit 케이스 비교
+
+<!-- docs/spec/quantization/mixed_precision_policy.md -->
+
+# Mixed Precision Policy Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+레이어별/역할별(bit 분리) mixed precision 전략을 정책 수준에서 정의한다.
+
+## 2. 정책 레벨
+
+- Global default
+- Layer override
+- (추후) Group / Channel override
+
+## 3. QConfig 구조
+
+> TODO: QConfig 클래스/포맷 정의 링크(IR 확장 문서와 연계)
+
+## 4. 예시 정책
+
+- FFN/Projection layer: W=4, A=8
+- Embedding/Output layer: W=8, A=8
+- KV Cache: 4bit
+
+## 5. 정책 평가 지표
+
+- latency 개선
+- 메모리 절감
+- 정확도 손실 (외부 평가와 연계)
+
+6. docs/spec/trace/ 폴더
+<!-- docs/spec/trace/trace_format_spec.md -->
+
+# Trace Format Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+시뮬레이터가 생성하는 trace 데이터의 공통 포맷을 정의한다.
+
+## 2. 요구사항
+
+- Gantt / Bandwidth / Utilization 등 공통 필드 지원
+- JSON 기반 외부 분석 도구 연계 용이
+
+## 3. 공통 필드
+
+- engine_type (DMA/TE/VE/FSM)
+- engine_id
+- op_type
+- layer_id
+- start_cycle
+- end_cycle
+
+## 4. JSON 스키마
+
+> TODO: 정식 JSON Schema 작성
+
+## 5. 예제
+
+> TODO: 간단한 예제 trace 추가
+
+<!-- docs/spec/trace/gantt_timeline_spec.md -->
+
+# Gantt Timeline Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+엔진별 실행 타임라인(Gantt Chart)을 어떻게 기록/표현할지 정의한다.
+
+## 2. 단위
+
+- cycle 단위
+- 엔진별 time range
+
+## 3. trace 필드
+
+> TODO: timeline에 필요한 최소 필드 정의
+
+## 4. 출력 포맷
+
+- 텍스트 기반
+- JSON 기반
+- (옵션) 이미지 렌더링용 인터페이스
+
+## 5. 예제
+
+> TODO: TE/VE/DMA timeline 예시
+
+<!-- docs/spec/trace/bandwidth_heatmap_spec.md -->
+
+# Bandwidth Heatmap Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+시간에 따른 DRAM/Bus bandwidth 사용률을 시각화하기 위한 trace 포맷을 정의한다.
+
+## 2. 윈도잉 정책
+
+- window_size (cycles)
+- per-window transferred_bytes
+
+## 3. 필드 정의
+
+- window_id
+- start_cycle
+- end_cycle
+- bytes_read
+- bytes_written
+
+## 4. Heatmap 매핑
+
+> TODO: 색상/scale 정책 설명
+
+## 5. 예제
+
+> TODO: 단순 traffic 패턴 예시
+
+<!-- docs/spec/trace/visualization_requirements.md -->
+
+# Visualization Requirements
+
+**Status**: Draft  
+
+## 1. 목적
+
+시각화 모듈이 지원해야 하는 뷰와 기능을 정의한다.
+
+## 2. 필수 뷰
+
+- Gantt Timeline
+- Bandwidth Heatmap
+- Engine Utilization
+- Quantization Impact Plot
+
+## 3. 인터랙션 요구사항 (옵션)
+
+> TODO: 줌, 필터, 레이어별 하이라이트 등 정의
+
+## 4. Export 요구사항
+
+- PNG/SVG
+- JSON/CSV
+
+## 5. 향후 확장
+
+- 인터랙티브 UI 연동
+
+7. docs/design/ 폴더
+
+아래 디자인 문서들은 패턴이 동일하므로, 대표 2–3개만 예시를 자세히 쓰고 나머지는 공통 스켈레톤을 줄게.
+
+<!-- docs/design/offline_compiler_design.md -->
+
+# Offline Compiler Design
+
+**Status**: Draft  
+
+## 1. 목적
+
+ONNX → IR → TileGraph → CMDQ로 이어지는 오프라인 컴파일러의 설계를 정의한다.
+
+## 2. 모듈 구성
+
+- IRBuilder
+- TilingPlanner
+- SPMAllocator
+- StaticScheduler
+- CMDQGenerator
+
+## 3. 데이터 흐름
+
+> TODO: 각 단계 입력/출력 다이어그램 추가
+
+## 4. 주요 알고리즘
+
+> TODO: 타일링, 스케줄링 알고리즘 개요
+
+## 5. 인터페이스
+
+> TODO: 각 모듈의 함수 시그니처/클래스 설계
+
+## 6. 확장 포인트
+
+- LLM dynamic scheduling
+- 새로운 op 추가 시 처리 경로
+
+<!-- docs/design/npu_simulator_core_design.md -->
+
+# NPU Simulator Core Design
+
+**Status**: Draft  
+
+## 1. 목적
+
+CMDQ를 실행하는 NPU Simulator Core(Control FSM, DMA/TE/VE/SPM)를 설계한다.
+
+## 2. 구성 요소
+
+- ControlFSM
+- CMDQExecutor
+- DMAEngine
+- TensorEngine (TE[0..N_te-1])
+- VectorEngine (VE[0..N_ve-1])
+- SPM/BusModel
+- GlobalCycleLoop
+
+## 3. 실행 루프 구조
+
+> TODO: cycle 기반 메인 루프 의사코드 추가
+
+## 4. 상태 관리
+
+> TODO: 엔진별 busy/free 상태, 이벤트 큐 설계
+
+## 5. Trace Hook
+
+> TODO: Gantt/Trace 수집 지점 정의
+
+<!-- docs/design/visualizer_design.md -->
+
+# Visualizer Design
+
+**Status**: Draft  
+
+## 1. 목적
+
+시뮬레이터 trace를 다양한 형태로 시각화하는 모듈의 설계를 정의한다.
+
+## 2. 서브 모듈
+
+- TimelineRenderer
+- MemoryHeatmapRenderer
+- EngineUtilizationCalculator
+- QuantizationImpactAnalyzer
+- Exporter
+
+## 3. 입력/출력 인터페이스
+
+> TODO: trace 포맷 → 플롯/데이터 구조 매핑 정의
+
+## 4. 사용 시나리오
+
+> TODO: 사용자가 보는 high-level workflow 예시
+
+## 5. 확장성
+
+- 새로운 metric 추가 시 패턴
+
+
+나머지 디자인 문서(예: ir_builder_design.md, tiling_planner_design.md, spm_allocator_design.md, static_scheduler_design.md, cmdq_generator_design.md, control_fsm_design.md, dma_engine_design.md, te_engine_design.md, ve_engine_design.md, cycle_loop_design.md)는 다음 공통 스켈레톤으로 시작하면 된다:
+
+# <Module Name> Design
+
+**Status**: Draft  
+
+## 1. 목적
+
+이 문서는 <Module Name> 모듈의 내부 구조와 동작 방식을 정의한다.
+
+## 2. 책임(Responsibility)
+
+- 역할:
+- 입력:
+- 출력:
+- 하지 않아야 할 일:
+
+## 3. 내부 구조
+
+> TODO: 클래스/함수/데이터 구조 설계
+
+## 4. 주요 알고리즘
+
+> TODO: 사용 알고리즘, 복잡도, 제약사항
+
+## 5. 인터페이스
+
+> TODO: 외부에서 사용하는 API/메서드 정의
+
+## 6. 예제 플로우
+
+> TODO: 대표 use-case 흐름 설명
+
+## 7. 향후 확장
+
+> TODO: 확장 계획/리팩토링 포인트
+
+8. docs/process/ 폴더
+<!-- docs/process/spec_driven_development_workflow.md -->
+
+# Spec-Driven Development Workflow
+
+**Status**: Draft  
+
+## 1. 목적
+
+Spec Driven Development 방식으로 개발을 진행하기 위한 표준 workflow를 정의한다.
+
+## 2. 기본 원칙
+
+1. Spec 먼저, 코드 나중
+2. 모든 기능은 관련 Spec 문서 변경을 포함해야 함
+3. 테스트는 Spec에서 유도
+
+## 3. 기능 추가 절차
+
+1. 관련 Spec 문서 업데이트  
+2. Design 문서(TDD) 업데이트  
+3. 코드 구현  
+4. Test 문서 업데이트  
+5. 리뷰 및 머지
+
+## 4. 리뷰 체크리스트
+
+> TODO: PR 리뷰 시 확인해야 할 항목 리스트
+
+## 5. 예시 시나리오
+
+> TODO: 새 opcode 추가 / 새 timing 모델 추가 등 구체 예시
+
+<!-- docs/process/contribution_and_review_guide.md -->
+
+# Contribution and Review Guide
+
+**Status**: Draft  
+
+## 1. 목적
+
+외부/내부 기여자가 일관된 방식으로 기여하고 리뷰를 받도록 안내한다.
+
+## 2. 브랜치 전략
+
+> TODO: main/dev/feature 브랜치 전략 정의
+
+## 3. PR 규칙
+
+- 관련 Spec/Design 문서 링크 필수
+- 테스트 결과 첨부
+- 변경 요약 제공
+
+## 4. 리뷰어 가이드
+
+> TODO: 리뷰 시 중점 확인 사항 정리
+
+## 5. 커밋 메시지 규칙
+
+> TODO: prefix/tag 규칙 정의
+
+<!-- docs/process/naming_convention.md -->
+
+# Naming Convention
+
+**Status**: Draft  
+
+## 1. 목적
+
+IR 필드명, opcode명, 클래스/함수명 등에 대한 naming 규칙을 정의한다.
+
+## 2. IR / CMDQ 필드명
+
+> TODO: snake_case, lowerCamelCase 등 규칙 명시
+
+## 3. Python 코드 스타일
+
+> TODO: PEP8 관련 핵심 요약
+
+## 4. 파일/디렉터리 명
+
+> TODO: 모듈 이름 규칙 정의
+
+## 5. 예제
+
+> TODO: good/bad 예시
+
+<!-- docs/process/versioning_and_changelog_guide.md -->
+
+# Versioning and Changelog Guide
+
+**Status**: Draft  
+
+## 1. 목적
+
+Spec/코드의 버전 관리와 변경 이력을 체계적으로 관리하기 위한 규칙을 정의한다.
+
+## 2. 버전 규칙
+
+- Semantic Versioning / 커스텀 정책 중 선택
+
+## 3. Changelog 포맷
+
+> TODO: 변경사항 기록 형식 정의
+
+## 4. 문서 버전 vs 코드 버전 관계
+
+> TODO: 동기화 전략 정의
+
+## 5. 예시
+
+> TODO: 샘플 changelog 항목
+
+9. docs/test/ 폴더
+<!-- docs/test/test_plan.md -->
+
+# Test Plan — NPU Simulator & Compiler
+
+**Status**: Draft  
+
+## 1. 목적
+
+전체 시스템의 기능/성능/회귀 테스트 전략을 정의한다.
+
+## 2. 테스트 분류
+
+- Unit Test
+- Integration Test
+- Performance / Accuracy Validation
+- Regression Test
+
+## 3. 테스트 항목 요약
+
+> TODO: 각 항목별 목표/방법/성공 기준 정의
+
+## 4. 자동화 전략
+
+> TODO: CI 연동, 테스트 주기 정의
+
+## 5. 리포팅
+
+> TODO: 테스트 결과 보고 포맷
+
+<!-- docs/test/golden_trace_examples.md -->
+
+# Golden Trace Examples
+
+**Status**: Draft  
+
+## 1. 목적
+
+대표 워크로드에 대한 참조 trace를 제공하여 회귀 테스트 기준으로 사용한다.
+
+## 2. 대상 워크로드
+
+- Simple MLP
+- Conv + Pooling 네트워크
+- Self-Attention 블록
+
+## 3. Golden Trace 포맷
+
+> TODO: trace_format_spec와 링크
+
+## 4. 예제
+
+> TODO: 축약된 trace 예시 추가
+
+## 5. 업데이트 정책
+
+> TODO: golden 업데이트 허용 조건 정의
+
+<!-- docs/test/unit_test_spec.md -->
+
+# Unit Test Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+모듈 단위(Unit) 테스트 계획을 정의한다.
+
+## 2. 대상 모듈
+
+- IRBuilder
+- TilingPlanner
+- SPMAllocator
+- StaticScheduler
+- CMDQGenerator
+- DMAEngine / TensorEngine / VectorEngine
+
+## 3. 테스트 케이스 구조
+
+> TODO: 입력/기대 출력/검증 규칙 정의
+
+## 4. 자동화 / 커버리지 목표
+
+> TODO: 최소 커버리지 목표 정의
+
+<!-- docs/test/integration_test_spec.md -->
+
+# Integration Test Specification
+
+**Status**: Draft  
+
+## 1. 목적
+
+엔드-투-엔드(ONNX→CMDQ→Simulation) 플로우의 통합 테스트 전략을 정의한다.
+
+## 2. 대상 시나리오
+
+- 단일 레이어
+- 다중 레이어 네트워크
+- LLM 일부 블록 (Self-Attn + FFN)
+
+## 3. 성공 기준
+
+- 시뮬레이터 동작 성공
+- trace 생성 및 시각화 가능
+- 예상 범위 내 latency
+
+## 4. 자동화 전략
+
+> TODO: 통합 테스트를 CI에 올리는 방식 정의
+
+<!-- docs/test/performance_validation_protocol.md -->
+
+# Performance Validation Protocol
+
+**Status**: Draft  
+
+## 1. 목적
+
+시뮬레이터의 성능 예측 정확도를 평가하는 절차를 정의한다.
+
+## 2. 검증 대상
+
+- latency 예측
+- bandwidth 사용률
+- 자원 사용률(TE/VE/DMA)
+
+## 3. 기준
+
+- 실 칩 또는 기준 모델 대비 오차 범위 (예: ±10~15%)
+
+## 4. 테스트 방법
+
+> TODO: 벤치마크 세트 구성 및 비교 방법 정의
+
+## 5. 리포트 포맷
+
+> TODO: 성능 검증 결과 보고 예시
