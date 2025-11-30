@@ -72,13 +72,6 @@ tools/                # 유틸리티 스크립트 (문서 상태 체크 등)
 4. 설계 및 테스트
    - Design: `docs/design/*.md`
    - Test: `docs/test/*.md`
-
-문서 상태(complete/draft 등)는 아래 스크립트로 한 번에 확인할 수 있습니다.
-
-```bash
-python tools/doc_status.py
-```
-
 ---
 
 ## 4. 개발 및 기여 가이드 (요약)
