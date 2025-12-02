@@ -2,8 +2,8 @@
 **Path:** `docs/test/unit_test_spec.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -30,6 +30,16 @@
 | UT-SPM-01 | SpmAllocator  | tile bytes가 bank 용량을 넘지 않는지 확인     | allocation 성공, 예외 없음       |
 
 필요 시 각 모듈별로 UT 케이스를 계속 확장한다.
+
+### 3.1 Spec/Design ↔ UT 매핑 표
+
+| UT ID    | Spec 문서 | Design 문서 |
+| --- | --- | --- |
+| UT-IR-01  | `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md` | `docs/design/ir_builder_design.md` |
+| UT-DMA-01/02 | `docs/spec/timing/dma_timing_spec.md` | `docs/design/dma_engine_design.md` |
+| UT-TE-01 | `docs/spec/timing/te_timing_spec.md` | `docs/design/te_engine_design.md` |
+| UT-VE-01 | `docs/spec/timing/ve_timing_spec.md` | `docs/design/ve_engine_design.md` |
+| UT-SPM-01 | `docs/spec/timing/spm_model_spec.md`, `docs/spec/quantization/bitwidth_memory_mapping.md` | `docs/design/spm_allocator_design.md` |
 
 ## 4. 절차 / 자동화
 - 테스트 실행:

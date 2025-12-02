@@ -2,8 +2,8 @@
 **Path:** `docs/design/control_fsm_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -55,18 +55,58 @@ IDLE → SCAN_CMDQ → UPDATE_READY_SET → ISSUE_TO_ENGINES → (IDLE 또는 DO
    해당 id를 deps_before에 포함하던 엔트리의 `deps_remaining`을 1 감소.
 3. `deps_remaining == 0`이고 아직 `NOT_ISSUED`이면 `READY`로 전환.
 
-### 4.2 issue 규칙 (단순 정책)
+### 4.2 issue 규칙 (baseline 정책)
 ```pseudo
-for each opcode in CMDQ order:
-    if state != READY: continue
-    target_engine = select_engine_for(opcode)
-    if engine_can_accept(target_engine):
-        issue_to_engine(opcode.id, target_engine)
-        state = ISSUED
+function step_issue(cycle):
+    issued = []
+
+    # 1) CMDQ 순서를 유지하면서 READY 엔트리 스캔
+    for entry in cmdq:
+        if entry.state != READY:
+            continue
+
+        target_engine = select_engine_for(entry)
+        if not engine_can_accept(target_engine):
+            continue
+
+        issue_to_engine(entry.id, target_engine)
+        entry.state = ISSUED
+        issued.append(entry.id)
+
+    return issued
 ```
-- `select_engine_for`는 `opcode` 종류와 필드(`te_id`, `ve_id`)에 따라 엔진을 선택.
-- issue 우선순위 정책은 단순 “CMDQ 순서”를 기본으로 두고,  
-  필요 시 레이어별/엔진별 fairness 정책을 추가할 수 있다.
+
+- `select_engine_for`는 `opcode`와 필드(`te_id`, `ve_id`)에 따라 엔진을 선택.
+- baseline에서는 단순 “CMDQ 순서 + 엔진 큐 여유 여부”를 사용한다.
+
+### 4.3 데드락/라이브락 방지 및 공정성 정책 (확장)
+
+멀티 DMA/TE/VE 환경에서는 starvation-free 스케줄링이 필요하다.  
+간단한 공정성(fairness) 정책 예시는 다음과 같다.
+
+```pseudo
+for engine_type in ["DMA", "TE", "VE"]:
+    # 라운드 로빈 방식으로 ready_queues를 순회
+    queue = ready_queues[engine_type]
+    start_idx = rr_cursor[engine_type]
+
+    for i in range(len(queue)):
+        idx = (start_idx + i) % len(queue)
+        entry_id = queue[idx]
+        entry = cmdq[entry_id]
+
+        if not engine_can_accept(engine_type, entry):
+            continue
+
+        issue_to_engine(entry_id, engine_type)
+        entry.state = ISSUED
+        rr_cursor[engine_type] = (idx + 1) % len(queue)
+        break
+```
+
+정책 요약:
+- 엔진 타입별 round-robin cursor(`rr_cursor`)를 유지해 특정 엔트리가 무한정 밀리지 않도록 한다.
+- 일정 cycle 동안 READY였지만 issue되지 못한 엔트리에 대해 “age 기반 가중치”를 둘 수도 있다.
 
 ### 4.3 종료 조건
 - `opcode == END`인 엔트리가 `COMPLETED`가 된 경우:
@@ -98,6 +138,10 @@ IssueRequest(
   2. DMA 완료 이벤트 수신 후 2.deps_remaining=0 → READY.
   3. TE 엔진이 free일 때 2 issue.
   4. TE 완료 이벤트 후 3 READY → ControlFSM가 `END` issue 및 완료 확인 → finished.
+
+위 시나리오에서 공정성 정책이 추가된 경우에도:
+- 0,1은 동일 타입(DMA) ready 큐에서 round-robin으로 선택되어 issue.
+- 2는 deps가 모두 만족된 시점 이후 가장 먼저 issue 가능한 TE 엔트리로 처리된다.
 
 ## 7. 향후 확장
 - issue 정책 개선:

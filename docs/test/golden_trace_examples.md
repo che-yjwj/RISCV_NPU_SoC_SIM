@@ -2,8 +2,8 @@
 **Path:** `docs/test/golden_trace_examples.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -26,6 +26,23 @@
 | GT-LLM-01 | LLM Prefill/Decode | 짧은 시퀀스 LLM 실행             | `tests/golden/trace/llm_short.json`    |
 
 각 항목은 trace_format_spec에 맞춘 단일 JSON 파일로 관리한다.
+
+### 3.1 최소 비교 필드 예시
+
+Golden trace 비교 시 기본적으로 확인해야 할 필드는 다음과 같다.
+
+| 범주 | 필드 예시 | 설명 |
+| --- | --- | --- |
+| 요약 메트릭 | `summary_metrics.cycles_total` | 총 cycle 수 |
+|  | `summary_metrics.dram_bytes_read/write` | DRAM 트래픽 합계 |
+| TE/VE 타임라인 | `timeline_events[ENGINE_EVENT].engine`/`engine_id` | 엔진별 실행 순서 |
+|  | `start_cycle`, `end_cycle` | 주요 tile 실행 구간 |
+| DMA/메모리 | `details.bytes`, `details.tensor_role` | tile별 전송 크기/역할 |
+| 토큰/페이즈 | `TOKEN_EVENT.phase`, `token_index` | Prefill/Decode 경계 및 token별 latency |
+
+간단한 비교 로직 예:
+- 필수 필드 값이 정확히 일치하는지 확인.  
+- cycle/bytes 등 연속 값은 성능 검증 프로토콜에서 정의한 허용 오차 범위 내 diff만 허용.
 
 ## 4. 절차 / 자동화
 - golden 생성:

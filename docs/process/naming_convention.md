@@ -2,8 +2,8 @@
 **Path:** `docs/process/naming_convention.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -50,6 +50,16 @@ IR 필드, CMDQ opcode/필드, 코드(클래스/함수/파일) 이름을 일관�
 - PR 리뷰 시, 새로 등장한 이름이 이 규칙을 따르는지 확인.  
 - 기존 이름과 충돌하거나 두 가지 형태가 섞여 있지 않은지 점검.  
 - 필요 시 naming 변경은 별도 리팩토링 PR로 분리해 영향 범위를 명확히 한다.
+
+## 7. 안티 패턴 예시
+
+| 나쁜 이름 | 좋은 이름 | 이유 |
+| --- | --- | --- |
+| `q_w`, `q_a` | `qbits_weight`, `qbits_activation` | 줄임말 대신 의미를 명확히 표현 |
+| `buf1`, `buf2` | `ifm_tile_buf`, `ofm_tile_buf` | 역할이 드러나지 않는 숫자 suffix 지양 |
+| `do_it()`, `run_all()` | `build_cmdq()`, `plan_tiles()` | 함수가 “무엇을” 하는지 드러나야 함 |
+| `tmp`, `data` | `cmdq_entry`, `tile_node`, `trace_event` | 범용 단어보다 도메인 개념 사용 |
+| `myClass`, `Manager` | `DmaEngine`, `StaticScheduler` | 추상적 이름/헝가리식 표기 지양, 역할 기반 이름 사용 |
 
 ## 6. 향후 업데이트 계획
 - 언어별(Python/C++ 등) 세부 스타일 가이드 연결.  

@@ -2,8 +2,8 @@
 **Path:** `docs/design/te_engine_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -49,6 +49,20 @@ class TeJob:
 ### 3.2 TE 상태
 - `busy_until_cycle[te_id]`: 해당 TE가 free가 되는 cycle.
 - `job_queue[te_id]`: 대기 중인 TeJob FIFO.
+
+### 3.3 파이프라인 개략 다이어그램
+
+```text
+SPM (IFM/WGT/OFM)
+      |
+      v
+ [TE Input Stage]  -->  [MAC Array]  -->  [Output Stage]  -->  SPM (OFM)
+        |                   |                 |
+   (address decode)   (MACs per cycle)   (write-back, quant)
+```
+
+- timing spec은 MAC Array와 bitwidth에 따른 처리량(`macs_per_cycle_eff`)에 집중한다.
+- Input/Output stage의 비용은 init/finalize latency 파라미터로 추상화한다.
 
 ## 4. 알고리즘 / 플로우
 

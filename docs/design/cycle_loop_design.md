@@ -2,8 +2,8 @@
 **Path:** `docs/design/cycle_loop_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -45,12 +45,26 @@ Global cycle loop는 시뮬레이터의 “메인 루프”로, **모든 엔진/
 4. TraceEngine에 이번 cycle의 이벤트/샘플 기록.
 
 ```pseudo
+cycle = 0
 while not control_fsm.is_finished() and cycle < max_cycles:
-    engines.step_all(cycle, memory_model, trace_engine)
-    events = engines.collect_completion_events()
+    # 1) 엔진/메모리 업데이트
+    dma_engines.step_all(cycle, memory_model, trace_engine)
+    tensor_engines.step_all(cycle, memory_model, trace_engine)
+    vector_engines.step_all(cycle, memory_model, trace_engine)
+    memory_model.step(cycle, trace_engine)
+
+    # 2) 엔진 완료 이벤트 수집
+    events = collect_engine_completion_events()
+
+    # 3) ControlFSM 업데이트 및 issue
     control_fsm.consume_engine_events(events)
-    control_fsm.step_issue(cycle)
+    issue_reqs = control_fsm.step_issue(cycle)
+    for req in issue_reqs:
+        engines[req.engine_type][req.engine_id].enqueue(req.cmdq_entry)
+
+    # 4) Trace 업데이트
     trace_engine.step(cycle)
+
     cycle += 1
 ```
 
@@ -64,6 +78,33 @@ while not control_fsm.is_finished() and cycle < max_cycles:
 - `ControlFSM.is_finished() == True` 이거나
 - `cycle >= max_cycles` (오류/무한루프 방지) 인 경우 루프 종료.
 - max_cycles 초과 시 trace summary에 “aborted” 플래그 기록.
+
+### 4.3 멀티 클럭/서브사이클 규칙 (옵션)
+
+초기 버전에서는 모든 서브시스템(DRAM/NPU/CPU)이 동일 cycle 도메인에 있는 것으로 가정한다.  
+멀티 클럭을 도입할 때는 다음과 같은 N:1 규칙을 사용한다.
+
+```text
+cpu_hz   = 1 GHz
+npu_hz   = 2 GHz
+dram_hz  = 0.5 GHz
+
+global_cycle = lcm(1/cpu_hz, 1/npu_hz, 1/dram_hz) 기준
+→ 예: global_cycle = 0.5 ns
+```
+
+```pseudo
+for cycle in range(max_cycles):
+    if cycle % 2 == 0:      # 1ns마다 CPU step
+        cpu.step(cycle)
+    if cycle % 1 == 0:      # 매 cycle NPU step
+        npu.step(cycle)
+    if cycle % 4 == 0:      # 2ns마다 DRAM step
+        dram.step(cycle)
+```
+
+이 규칙을 사용하면 서로 다른 클럭 도메인을 단일 global cycle loop로 통합할 수 있다.  
+실제 비율과 서브사이클 세분화는 timing spec/config에 따라 결정한다.
 
 ### 4.3 성능/정확도 모드
 - **정확도 우선 모드:** 모든 엔진/메모리 이벤트를 상세 기록.

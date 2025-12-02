@@ -2,8 +2,8 @@
 **Path:** `docs/design/tiling_planner_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -70,6 +70,18 @@ class TileNode:
 - KV cache:
   - seq 방향(tile per token or group of tokens).
 - TileGraph에서 head/seq 축을 명시적으로 표현해 StaticScheduler에서 head parallelism을 이용할 수 있게 한다.
+
+### 4.3 타일링 전략 요약 표 (1D/2D/Attention)
+
+| Layer 유형 | 기본 축 | 타일링 축 | 전략 요약 |
+| --- | --- | --- | --- |
+| GEMM/FFN | (M, N, K) | M, N | SPM 용량 내에서 `M_tile×N_tile`를 크게 잡고, K는 가능한 한 크게 유지해 compute 효율 극대화 |
+| Conv (2D) | (N, H, W, C) | H, W, C | SPM에 IFM/WGT/OFM가 동시에 들어가도록 H/W를 우선 타일링, C는 channel grouping에 맞춰 분할 |
+| LayerNorm/RMSNorm | (B, T, H) | H | hidden size(H)를 lane 수에 맞춰 타일링, 토큰 단위(B×T)는 VE 병렬성으로 처리 |
+| Attention (Q/K/V) | (B, T, H, D) or (B, H, T, D) | T, H | KV cache는 T(시퀀스) 기준으로 타일링, 다중 head(H)는 가능한 병렬로 유지 |
+| KV Cache Update | (B, H, T, D) | T | 새 토큰 또는 토큰 블록 단위로 T를 타일링하여 append/copy 비용 최소화 |
+
+> 실제 구현에서는 위 전략을 기본값으로 두되, auto-tuning이나 workload 특성에 따라 축/크기를 조정할 수 있다.
 
 ## 5. 인터페이스
 - `TilingPlanner.plan(ir: NpuIr, hw_config) -> TileGraph`

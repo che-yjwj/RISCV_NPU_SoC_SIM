@@ -2,8 +2,8 @@
 **Path:** `docs/design/dma_engine_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -52,6 +52,29 @@ class DmaJob:
 - `pending_queue`: 아직 시작하지 않은 DmaJob FIFO.
 - `active_jobs`: 현재 진행 중인 전송 목록 (shared bandwidth 모델에서 다수 허용).
 - `stats`: 누적 DRAM bytes, job 수, 평균 latency 등.
+
+### 3.3 상태 전이 개략
+
+```text
+           +-----------+
+           |  QUEUED   |
+           +-----------+
+                 |
+                 | can_start_new_job()
+                 v
+           +--------------+
+           | TRANSFERRING |
+           +--------------+
+                 |
+                 | remaining_bytes <= 0
+                 v
+           +-----------+
+           | COMPLETED |
+           +-----------+
+```
+
+- QUEUED → TRANSFERRING: Bus/NoC/SPM 여건이 허용되는 순간 시작.
+- TRANSFERRING → COMPLETED: 모든 bytes 전송 후 completion 이벤트 및 trace 기록.
 
 ## 4. 알고리즘 / 플로우
 

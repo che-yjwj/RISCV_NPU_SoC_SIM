@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Trace/Visualization Architect  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -34,6 +34,19 @@ CLI/GUI 모두 JSON→SVG/PNG/HTML export를 지원.
 - `start_cycle <= end_cycle`.
 - Gantt 범위는 trace summary `cycles_total`을 초과하지 않아야 함.
 - CMDQ id가 timeline 시퀀스에 존재하는지 확인.
+
+## 6. 최소 필드 표 (ENGINE_EVENT 매핑)
+
+| 필드 | 타입 | 필수 여부 | 설명 |
+| --- | --- | --- | --- |
+| `engine` | string | 필수 | `"DMA"`, `"TE"`, `"VE"`, `"HOST"` 등 |
+| `engine_id` | int | 필수 | Y축 lane 식별자 |
+| `start_cycle` | int | 필수 | Gantt bar 시작 |
+| `end_cycle` | int | 필수 | Gantt bar 끝 |
+| `layer_id` | string/null | 권장 | 레이어/모듈 구분용 라벨 |
+| `tile_id` | string/null | 옵션 | 타일 단위 식별자 |
+| `cmdq_id` | int | 권장 | CMDQ와 상호 점프 시 사용 |
+| `color_hint` | string/null | 옵션 | 강조가 필요한 경우 커스텀 색상 힌트 |
 
 ## 6. 인터랙션 요구사항(옵션)
 - 범위 선택/줌, 엔진/레이어 필터, 토큰 경계 jump.

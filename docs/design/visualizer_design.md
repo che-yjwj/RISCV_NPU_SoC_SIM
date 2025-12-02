@@ -2,8 +2,8 @@
 **Path:** `docs/design/visualizer_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -95,6 +95,21 @@ Renderer.render_utilization(util, output_util_path)
   - X축=시간, Y축=metric(read/write/total 또는 channel).  
 - Renderer:
   - 컬러맵(예: 0~1 → 파란색~빨간색)을 사용해 표 형태로 그린다.
+
+### 4.4 뷰 구성 개략 다이어그램
+
+```text
+Trace JSON
+   |
+   v
+[TraceLoader] --> [TimelineModel]  -->  Gantt Timeline (MVP)
+             \-> [BandwidthModel] -->  Bandwidth Heatmap (MVP)
+             \-> [UtilizationModel] --> Engine Util Dashboard (MVP)
+             \-> [QuantizationModel?] --> Quantization Impact Plot (확장)
+```
+
+- MVP: Gantt, BW Heatmap, Utilization Dashboard.
+- 확장: Quantization Impact Plot, multi-run diff view, 대화형 웹 UI.
 
 ## 5. 인터페이스
 - 라이브러리 스타일 예시:

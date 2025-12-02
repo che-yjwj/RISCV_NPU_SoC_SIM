@@ -2,8 +2,8 @@
 **Path:** `docs/design/offline_compiler_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -59,6 +59,31 @@ ONNX → IrBuilder → NPU IR
       → CmdqGenerator → CMDQ(JSON)
 ```
 
+### 3.3 Pass Graph (개념도)
+
+Offline Compiler는 여러 pass를 거치며 그래프를 점진적으로 변환한다.  
+아래는 노드=pass, 엣지=데이터 흐름을 단순화한 pass graph이다.
+
+```text
+ONNX Model
+   |
+   v
+[IrBuilder]
+   |
+   v
+[QuantizationAnnotator]
+   |
+   v
+[TilingPlanner] ---> [SpmAllocator] ---> [StaticScheduler] ---> [CmdqGenerator]
+                                              |                      |
+                                              +------>  CMDQ JSON <--+
+```
+
+특징:
+- 앞단은 모델 표현(NPU IR + quantization)을 만드는 logical pass.
+- 뒷단은 하드웨어 자원(SPM/엔진)을 고려한 타일/스케줄/CMDQ pass.
+- 향후 최적화 pass(예: fusion, reordering)는 위 graph 사이/위에 추가 가능하다.
+
 ## 4. 알고리즘 / 플로우
 
 ### 4.1 상위 run 메서드 예시
@@ -84,6 +109,13 @@ def compile(onnx_path: str, hw_config: HwConfig, qconfig: QConfig) -> CmdqArtifa
 ## 6. 예시 시나리오
 - Small MLP/Transformer block에 대해:
   - ONNX → CMDQ까지의 결과를 모두 저장하여 시뮬레이터와 trace를 비교.
+  - 특히 하나의 FFN 또는 Attention block을 선택해:
+    - NPU IR (layer/op 구조)
+    - TileGraph (tile 분해)
+    - SPM allocation (bank/offset)
+    - Schedule DAG (tile 순서/엔진 할당)
+    - CMDQ(JSON) (실행 스트림)
+    를 한 세트의 “golden 파이프라인 예제”로 유지하면, 설계 변경/회귀 테스트 기준점으로 활용할 수 있다.
 
 ## 7. 향후 확장
 - MLIR backend 연동.

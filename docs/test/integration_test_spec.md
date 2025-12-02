@@ -2,8 +2,8 @@
 **Path:** `docs/test/integration_test_spec.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -26,6 +26,15 @@ Offline Compiler와 Simulator Core를 포함한 **엔드-투-엔드 및 모듈 �
 | IT-ATTN-01| 간단한 Self-Attention 블록 End-to-End           | TE/VE/DMA timeline이 spec 데이터플로우와 일치 |
 | IT-KV-01  | KV Cache 포함 LLM Prefill/Decode 패턴 검증       | KV traffic/bitwidth가 spec과 일관           |
 | IT-ERR-01 | 잘못된 CMDQ/IR 입력에 대한 에러 핸들링 확인     | 명확한 에러 메시지, 비정상 종료 없음       |
+
+### 3.1 대표 ONNX 모델 및 메트릭 예시
+
+| ID        | ONNX 모델 예시 | 주요 메트릭 | 비고 |
+| --- | --- | --- | --- |
+| IT-MLP-01  | `tests/data/integration/onnx/mlp_small.onnx` | 총 cycle 수, TE/VE utilization, DRAM bytes | 단일 FFN 블록 기준 |
+| IT-ATTN-01 | `tests/data/integration/onnx/attn_block.onnx` | attention block latency, KV traffic bytes | Self-Attention 데이터플로우 검증 |
+| IT-KV-01   | `tests/data/integration/onnx/llm_prefill_decode.onnx` | prefill/decode latency per token, KV bytes | Prefill/Decode 패턴 및 KV 재사용 확인 |
+| IT-ERR-01  | 의도적으로 잘못된 CMDQ/IR 스냅샷 | 에러 코드/메시지 | 에러 경로·검증 로직 테스트 |
 
 ## 4. 절차 / 자동화
 - 실행 단계:

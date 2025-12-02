@@ -2,8 +2,8 @@
 **Path:** `docs/design/ir_builder_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -65,6 +65,20 @@ class LayerIr:
   - `MatMul + Add` → `GEMM`
   - `LayerNormalization` → `LAYER_NORM`
   - `Attention` 관련 서브그래프 → `QKV_PROJ`, `ATTN_SCORE`, `ATTN_OUTPUT`
+
+### 4.1.1 지원 ONNX Op 집합 (예시)
+
+| ONNX Op (또는 패턴) | NPU IR `op_type` | 비고 |
+| --- | --- | --- |
+| `MatMul` + `Add` | `GEMM` | bias fusion 포함 |
+| `Gemm` | `GEMM` | ONNX Gemm 속성을 IR attributes로 매핑 |
+| `LayerNormalization` | `LAYER_NORM` | eps, axis 등 attributes 보존 |
+| `RMSNorm` (custom/opset ext) | `RMS_NORM` | LLM용 커스텀 op 매핑 |
+| `Softmax` | `SOFTMAX` | dim/axis 보존 |
+| Self-Attention 서브그래프 | `QKV_PROJ`, `ATTN_SCORE`, `ATTN_OUTPUT`, `KV_UPDATE` | 패턴 매칭 기반 fusion |
+| `Add`/`Mul`/`GELU`/`Relu` 등 | 대응 IR op 또는 element-wise 그룹 | 필요 시 향후 fusion 대상으로 사용 |
+
+> 실제 지원 목록과 상태(지원/부분 지원/미지원)는 구현이 진행되면 별도 표로 확장 가능하다.
 
 ### 4.2 Tensor 메타데이터 생성
 1. ONNX 값 정보에서 shape/dtype 추출.

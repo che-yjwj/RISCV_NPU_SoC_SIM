@@ -2,8 +2,8 @@
 **Path:** `docs/design/static_scheduler_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -56,8 +56,8 @@ class ScheduleEntry:
 2. 각 tile에 대해:
    - 필요 DMA LOAD_TILE (ifm/wgt), TE/VE tile, DMA STORE_TILE을 logical 순서로 생성.
 3. 데이터 의존성 기반으로 deps_before 추가:
-   - LOAD → TE/VE → STORE 흐름.
-   - TileGraph edges를 따라 producer tile의 STORE와 consumer tile의 LOAD/TE 사이에 deps 추가.
+  - LOAD → TE/VE → STORE 흐름.
+  - TileGraph edges를 따라 producer tile의 STORE와 consumer tile의 LOAD/TE 사이에 deps 추가.
 
 ### 4.2 엔진 배정
 - 간단한 라운드로빈 또는 load-balance heuristic:
@@ -68,6 +68,35 @@ class ScheduleEntry:
 ### 4.3 SPM 관점 조정
 - SPMAllocator에서 제공하는 lifetime 정보와 bank occupancy를 기반으로:
   - bank conflict가 커질 것으로 예상되는 타일은 순서를 조정하거나 deps를 삽입해 overlap 완화.
+
+### 4.4 우선순위 정책 의사코드 (예시)
+
+간단한 priority 기반 스케줄링 예시:
+
+```pseudo
+ready_queue = PriorityQueue()
+
+for tile in tile_graph.topological_order():
+    enqueue_initial_ops_for_tile(tile)  # LOAD / TE/VE / STORE
+
+while not ready_queue.empty():
+    entry = ready_queue.pop_max_priority()
+
+    engine = select_engine(entry)
+    if engine_can_accept(engine):
+        assign_engine(entry, engine)
+        mark_scheduled(entry)
+        update_successors(entry, ready_queue)
+    else:
+        # 엔진이 바쁘면 우선순위를 약간 낮추고 다시 큐에 삽입
+        decay_priority(entry)
+        ready_queue.push(entry)
+```
+
+우선순위 예시:
+- DMA LOAD 우선 → 데이터 준비를 먼저 해서 TE/VE idle을 줄인다.
+- TE는 ready tile 중 SPM conflict가 적은 순서로 선택.
+- VE는 Latency-critical path(예: LayerNorm, Softmax) 연산에 가중치를 줄 수 있다.
 
 ## 5. 인터페이스
 - `StaticScheduler.schedule(tile_graph, spm_alloc, hw_config) -> ScheduleDAG`

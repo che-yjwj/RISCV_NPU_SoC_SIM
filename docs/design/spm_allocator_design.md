@@ -2,8 +2,8 @@
 **Path:** `docs/design/spm_allocator_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -90,6 +90,33 @@ for tile in tiles_sorted_by_start:
 - 작은 MLP 모델에 대한 TileGraph를 입력으로 SPMAllocator를 실행:
   - IFM/WGT가 다른 bank에 배치되어 DMA/TE 병렬성이 높아지는지,
   - bank별 사용량이 균형적인지 시각화로 검증.
+
+### 6.1 단일 TileGraph에 대한 SPM 배치 예시
+
+```text
+SPM config:
+  num_banks = 4
+  bank_size_bytes = 64 KB
+
+Tiles (간략):
+  t0 (GEMM0): lifetime=[0, 3]
+  t1 (GEMM1): lifetime=[1, 4]
+```
+
+예시 배치:
+
+| Tile | Role | Bank | Offset(bytes) | Size(bytes) | Lifetime |
+| --- | --- | --- | --- | --- | --- |
+| t0  | IFM  | 0    | 0            | 8 KB        | [0, 3] |
+| t0  | WGT  | 1    | 0            | 16 KB       | [0, 3] |
+| t0  | OFM  | 2    | 0            | 8 KB        | [1, 3] |
+| t1  | IFM  | 0    | 8 KB         | 8 KB        | [1, 4] |
+| t1  | WGT  | 1    | 16 KB        | 16 KB       | [1, 4] |
+| t1  | OFM  | 3    | 0            | 8 KB        | [2, 4] |
+
+해석:
+- t0/t1의 IFM/WGT는 서로 다른 bank 또는 다른 offset으로 배치되어 bank 충돌을 완화.
+- t0의 OFM과 t1의 OFM은 lifetime이 부분적으로 겹치지 않는다면 동일 bank 내 reuse도 가능하며, allocator heuristic에 따라 선택된다.
 
 ## 7. 향후 확장
 - multi-level SPM (L0/L1) 지원.
