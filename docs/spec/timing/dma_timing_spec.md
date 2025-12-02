@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Memory / Bus / DMA Architect  
-**Last Updated:** YYYY-MM-DD  
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02  
 
 ---
 
@@ -397,3 +397,73 @@ DMAEngine timing 모델은
 NPU Simulator의 전체 accuracy를 결정하는 핵심 요소 중 하나이며,
 특히 LLM workloads에서 DRAM → KV Cache traffic이 latency의 주요 병목이므로
 본 스펙은 LLM-centric NPU 시뮬레이터에서 필수적이다.
+
+---
+
+# 17. 예시 Config (Profile) 스니펫
+
+아래는 시뮬레이터 설정 파일에서 사용할 수 있는 DMA timing 관련 예시 config이다.
+
+```json
+{
+  "timing": {
+    "dma": {
+      "profile_name": "mobile_llm_lpddr",
+      "bus_width_bytes": 32,
+      "dram_burst_length": 16,
+      "dram_burst_cycles": 8,
+      "peak_bw_bytes_per_cycle": 64,
+      "alignment_bytes": 32,
+      "spm_conflict_cycles": 4,
+      "max_active_dma_engines": 2
+    }
+  }
+}
+```
+
+해석:
+- LPDDR급 DRAM + 32B bus, 보수적인 burst latency(8 cycles)를 가정.
+- 2개의 DMAEngine이 동시에 active일 수 있으며, shared-bandwidth 모델을 적용.
+
+---
+
+# 18. Throughput-bound vs Latency-bound 예시
+
+동일 타일에 대해 DRAM/Bus 파라미터를 바꾸며 latency가 어떻게 달라지는지 예를 든다.
+
+- 타일: KV cache tile (`num_elements = 4096`, `qbits = 4`, `alignment_bytes = 32`)  
+- bytes = 4096 × 4 / 8 = 2048 bytes → bytes_aligned = 2048 bytes
+
+## 18.1 Throughput-bound 시나리오
+
+```text
+bus_width_bytes = 64
+dram_burst_cycles = 4
+peak_bw_bytes_per_cycle = 128
+active_dma_count = 1
+```
+
+```text
+num_bursts    = ceil(2048 / 64) = 32
+latency_burst = 32 × 4 = 128 cycles
+latency_bw    = 2048 / 128 = 16 cycles
+dma_latency_raw = max(128, 16) = 128 cycles  (burst 지배)
+```
+
+## 18.2 Latency-bound 시나리오
+
+```text
+bus_width_bytes = 16
+dram_burst_cycles = 8
+peak_bw_bytes_per_cycle = 64
+active_dma_count = 1
+```
+
+```text
+num_bursts    = ceil(2048 / 16) = 128
+latency_burst = 128 × 8 = 1024 cycles
+latency_bw    = 2048 / 64 = 32 cycles
+dma_latency_raw = max(1024, 32) = 1024 cycles  (burst 지배, 고정 오버헤드 큼)
+```
+
+같은 bytes라도 DRAM/bus 파라미터에 따라 DMA가 throughput-bound 또는 latency-bound로 동작할 수 있음을 보여 준다. 실제 시뮬레이터에서는 contention 및 SPM conflict term을 추가해 최종 latency를 계산한다.

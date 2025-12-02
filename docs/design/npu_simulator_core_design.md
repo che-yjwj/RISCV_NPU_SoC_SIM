@@ -2,8 +2,8 @@
 **Path:** `docs/design/npu_simulator_core_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -64,28 +64,38 @@ NPU Simulator Core는 CMDQ를 입력으로 받아 **cycle 기반으로 DMA/TE/VE
 4. DMA/TE/VE/MemoryModel/TraceEngine 인스턴스 생성.
 
 ### 4.2 Global Cycle Loop 개략
+
+Cycle loop의 세부 책임은 `cycle_loop_design.md`에서 정의하며,  
+여기서는 SimulatorCore 입장에서의 high-level 동작만 요약한다.
+
 ```pseudo
 cycle = 0
-while not control_fsm.is_finished():
-    # 1) 엔진 업데이트
-    for dma in dma_engines:
-        dma.step(cycle, memory_model, trace_engine)
-    for te in tensor_engines:
-        te.step(cycle, trace_engine)
-    for ve in vector_engines:
-        ve.step(cycle, trace_engine)
+while not control_fsm.is_finished() and cycle < max_cycles:
+    # 1) 엔진/메모리 상태 업데이트
+    dma_engines.step_all(cycle, memory_model, trace_engine)
+    tensor_engines.step_all(cycle, memory_model, trace_engine)
+    vector_engines.step_all(cycle, memory_model, trace_engine)
     memory_model.step(cycle, trace_engine)
 
-    # 2) 완료 이벤트 처리
+    # 2) 완료 이벤트 수집 및 FSM에 전달
+    engine_event_queue = collect_engine_events()
     control_fsm.consume_engine_events(engine_event_queue)
 
-    # 3) CMDQ issue
-    control_fsm.step_issue(cycle, cmdq, engines)
+    # 3) CMDQ issue (FSM 정책에 따라 여러 엔진에 enqueue 가능)
+    issue_reqs = control_fsm.step_issue(cycle)
+    for req in issue_reqs:
+        engines[req.engine_type][req.engine_id].enqueue(req.cmdq_entry)
+
+    # 4) TraceEngine per-cycle 샘플링 (선택)
+    trace_engine.step(cycle)
 
     cycle += 1
 
 trace_engine.finalize()
 ```
+
+> Implementation note: 실제 구현에서는 `CycleLoop` 모듈이 위 루프를 소유하고,  
+> SimulatorCore는 엔진/ControlFSM/TraceEngine 오브젝트를 제공하는 구성으로 분리한다.
 
 ### 4.3 종료 조건
 - `END` opcode가 deps를 모두 만족하고 실행 완료된 시점에  

@@ -2,8 +2,8 @@
 **Path:** `docs/design/ve_engine_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -47,6 +47,17 @@ class VeJob:
 ### 3.2 VE 상태
 - `busy_until_cycle[ve_id]`
 - `job_queue[ve_id]`
+
+### 3.3 파이프라인 개략 다이어그램
+
+```text
+SPM (input)  -->  [Elementwise Stage]  -->  [Reduction Stage]  -->  [Finalize Stage]  -->  SPM (output)
+                    |                         |                     |
+              (SFU: exp/tanh/rsqrt)     (mean/sum/max)       (scale/shift/residual)
+```
+
+- LayerNorm/RMSNorm: Reduction Stage(평균/분산) + Elementwise/Finalize.
+- Softmax: max reduction → exp elementwise → sum reduction → normalize.
 
 ## 4. 알고리즘 / 플로우
 

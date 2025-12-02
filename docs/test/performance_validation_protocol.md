@@ -2,8 +2,8 @@
 **Path:** `docs/test/performance_validation_protocol.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -26,6 +26,16 @@
 | PV-LLM-01 | LLM block     | Prefill/Decode 전체 latency 및 BW 패턴   | 규정된 오차/패턴 범위 내         |
 
 “실측”은 레퍼런스 시뮬레이터/분석 또는 하드웨어 측정 값을 의미할 수 있다.
+
+### 3.1 허용 오차 및 기준치 예시
+
+| ID        | 기준 메트릭 | 허용 오차 | 비고 |
+| --- | --- | --- | --- |
+| PV-MLP-01  | total latency cycles | ±5% | 단순 구조여서 더 엄격한 기준 |
+| PV-ATTN-01 | attention block latency, DRAM read bytes | ±10% | KV traffic 포함, BW 모델 오차 고려 |
+| PV-LLM-01  | prefill latency, avg decode latency/token, DRAM read/write bytes | ±15% | 전체 LLM 파이프라인 기준 |
+
+Baseline/reference 값은 `tests/data/perf/reference/*.json` 등에 저장하고, 해당 파일 경로를 테스트 코드/CI 설정에서 참조한다.
 
 ## 4. 절차 / 자동화
 - 입력:

@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Visualization Lead  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 

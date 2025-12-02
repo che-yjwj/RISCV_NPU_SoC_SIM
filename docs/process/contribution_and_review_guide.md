@@ -2,8 +2,8 @@
 **Path:** `docs/process/contribution_and_review_guide.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -35,7 +35,21 @@
 - [ ] 관련 스펙/디자인 문서와 코드가 일치하는지 확인.  
 - [ ] 인터페이스/이름/구조가 naming convention과 일치하는지.  
 - [ ] 테스트가 충분한지, 누락된 에지케이스는 없는지.  
-- [ ] 유지보수성/확장성 측면에서 문제가 없는지(과도한 coupling 등).
+- [ ] 유지보수성/확장성 측면에서 문제가 없는지(과도한 coupling 등).  
+- [ ] breaking change의 경우 versioning/changelog 가이드에 맞게 처리됐는지.
+
+### 3.3 최소 리뷰 규칙 (권장)
+
+- Spec/Design 변경이 포함된 PR:
+  - 최소 2명 승인 (아키텍트/모듈 오너 1명 포함 권장).
+- 구현/버그 수정 PR:
+  - 최소 1명 승인, 가능하면 해당 모듈에 익숙한 리뷰어 우선 지정.
+- 테스트만 추가/수정하는 PR:
+  - 상황에 따라 self-merge 가능하나, 회귀 위험이 크면 리뷰 권장.
+
+PR 생성 시 라벨 예시:
+- `type:spec`, `type:design`, `type:impl`, `type:test`
+- `area:compiler`, `area:simulator`, `area:docs`
 
 ## 4. 권장 템플릿 / 예시
 

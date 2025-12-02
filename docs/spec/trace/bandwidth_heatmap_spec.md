@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Trace/Visualization Architect  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -29,6 +29,31 @@ Peak BW는 `config_snapshot.memory`에서 취득.
 - Y축: 채널 또는 metric (read/write/total).
 - 색상 스케일: 0→peak_bw, linear 혹은 log 선택.
 - Threshold 표시: utilization > 0.8 시 경고 표시.
+
+### 4.1 예시 샘플
+
+```json
+"bandwidth_samples": [
+  {
+    "cycle": 1000,
+    "window_cycles": 64,
+    "dram_read_bytes": 4096,
+    "dram_write_bytes": 1024,
+    "kv_bytes": 2048
+  },
+  {
+    "cycle": 1064,
+    "window_cycles": 64,
+    "dram_read_bytes": 2048,
+    "dram_write_bytes": 0,
+    "kv_bytes": 2048
+  }
+]
+```
+
+이 두 샘플을 기반으로 viewer는:
+- window별 read/write/total BW를 계산하고,
+- `kv_bytes`를 별도 채널로 표시해 KV cache traffic hotspot을 시각화할 수 있다.
 
 ## 5. 추가 기능
 - Token boundary/레이어 boundary overlay.

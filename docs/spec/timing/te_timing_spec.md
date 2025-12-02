@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Compute / Tensor Engine Architect  
-**Last Updated:** YYYY-MM-DD  
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02  
 
 ---
 
@@ -265,6 +265,37 @@ compute_cycles_raw = ceil(MACs_tile / 6144)
 te_latency_tile = 8 + compute_cycles_raw + 4
 
 이 te_latency_tile 값이 해당 타일의 busy 구간을 정의한다.
+
+---
+
+# 11. Throughput-bound vs Latency-bound 시나리오
+
+TE는 `macs_per_cycle_eff`와 tile 크기에 따라 throughput-bound 또는 latency-bound처럼 보일 수 있다. 아래는 두 가지 extreme 예시이다.
+
+## 11.1 Throughput-bound (큰 tile, 높은 utilization)
+
+- `macs_per_cycle_base = 8192`  
+- `f_w(4) = 2.0`, `f_a(8) = 1.0` → `macs_per_cycle_eff = 16384`  
+- Tile: `M=256, N=256, K=256` → `MACs_tile = 256×256×256 ≈ 16.7M`
+
+```text
+compute_cycles_raw ≈ 16.7M / 16384 ≈ 1024 cycles
+te_latency_tile ≈ init(8) + 1024 + finalize(4) = 1036 cycles
+```
+
+이 경우 init/finalize 오버헤드는 전체 latency에서 작은 비율을 차지하며, TE는 거의 최대 throughput으로 동작한다.
+
+## 11.2 Latency-bound (작은 tile, 파이프라인 오버헤드 지배)
+
+- 같은 TE 파라미터 (`macs_per_cycle_eff = 16384`)  
+- Tile: `M=16, N=16, K=16` → `MACs_tile = 4096`
+
+```text
+compute_cycles_raw = ceil(4096 / 16384) = 1 cycle
+te_latency_tile = init(8) + 1 + finalize(4) = 13 cycles
+```
+
+작은 tile에서는 실제 연산량보다 init/finalize가 latency를 지배하여 “latency-bound”에 가깝게 보인다. 타일링/스케줄러는 이 trade-off를 고려해 tile 크기와 병렬성을 조정해야 한다.
 
 # 11. TE Timing과 Quantization의 관계
 Quantization은 TE timing에 크게 두 가지 방식으로 영향 준다.

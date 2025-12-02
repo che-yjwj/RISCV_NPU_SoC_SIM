@@ -2,8 +2,8 @@
 **Path:** `docs/test/test_plan.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -31,6 +31,16 @@
 | T-RG-GOLD | Regression | Golden trace와 현재 trace 비교         | 차이가 없거나 허용 범위 내 diff            |
 
 상세 케이스는 `unit_test_spec.md`, `integration_test_spec.md`, `performance_validation_protocol.md`, `golden_trace_examples.md`에서 정의한다.
+
+### 3.1 대표 ID ↔ 스펙/디자인 문서 매핑
+
+| Test ID   | 관련 Spec/Design 문서 |
+| --- | --- |
+| T-UT-IR   | `docs/spec/ir/npu_ir_spec.md`, `docs/design/ir_builder_design.md` |
+| T-UT-DMA  | `docs/spec/timing/dma_timing_spec.md`, `docs/design/dma_engine_design.md` |
+| T-IT-E2E  | `docs/overview/system_architecture.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/design/offline_compiler_design.md`, `docs/design/npu_simulator_core_design.md` |
+| T-PF-LLM  | `docs/spec/timing/*.md`, `docs/spec/quantization/*.md`, `docs/test/performance_validation_protocol.md` |
+| T-RG-GOLD | `docs/spec/trace/trace_format_spec.md`, `docs/test/golden_trace_examples.md` |
 
 ## 4. 절차 / 자동화
 - 기본 실행 단계:

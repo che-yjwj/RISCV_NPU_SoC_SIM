@@ -2,8 +2,8 @@
 **Path:** `docs/process/spec_driven_development_workflow.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -41,6 +41,18 @@
 - Spec: `docs/spec/..`에 있는 패턴(목적, 범위, 설계 원칙, 예제, 참조 문서)을 그대로 사용.  
 - Design: 기존 디자인 문서 템플릿(목적, 책임, 내부 구조, 플로우, 인터페이스, 예시)을 재사용.  
 - Test: `test_plan.md`, `unit_test_spec.md`, `integration_test_spec.md`의 표 형식을 사용.
+
+### 4.1 PR/Issue 템플릿 연계 예시
+
+- **Spec 변경 관련 Issue 제목 규칙**
+  - `[SPEC] IR timing update for TE`  
+  - `[SPEC] Add KV cache quantization fields`
+- **Spec 변경 포함 PR 제목 규칙**
+  - `[spec][ir] Update npu_ir_spec for KV4`  
+  - `[spec][isa] Extend CMDQ deps fields`
+- GitHub Issue/PR 템플릿에 다음 체크 항목을 두는 것을 권장:
+  - [ ] 관련 스펙 문서 경로를 적었는가?  
+  - [ ] Design/Test 문서도 함께 업데이트했는가?
 
 ## 5. 검증 / 리뷰 포인트
 - Spec이 변경된 코드/테스트와 실제 일치하는지.  

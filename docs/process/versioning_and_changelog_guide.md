@@ -2,8 +2,8 @@
 **Path:** `docs/process/versioning_and_changelog_guide.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -27,6 +27,17 @@
   - MAJOR: IR/ISA/Trace 구조 변경 등, 이전 CMDQ/Trace와 비호환.  
   - MINOR: 새로운 opcode/필드 추가(뒤 호환).  
   - PATCH: 버그/설명 수정, 인터페이스 동일.
+
+### 3.1 Spec ↔ Code 버전 매핑 예시
+
+| Spec 묶음 | Spec 버전 예 | 코드 태그 예 | 설명 |
+| --- | --- | --- | --- |
+| IR/ISA/Timing/Trace | `spec_version = 1.1.0` | `simulator v0.3.x` | 구현이 spec v1.1.0에 맞춰졌음을 의미 |
+| IR only 변경 | `ir_version = 1.2.0` | `compiler v0.4.x` | IRBuilder/Compiler가 새 IR 버전을 지원 |
+| Trace 포맷 확장 | `trace_format_version = 1.1` | `visualizer v0.2.x` | Viewer가 새 필드를 이해하지만 구버전도 지원 |
+
+원칙:
+- Spec이 주도(spec_version/ir_version/trace_format_version), 코드는 해당 spec 버전과의 호환성을 문서/태그에서 명시한다.
 
 ## 4. Changelog 작성 가이드
 - 위치: `CHANGELOG.md` 또는 관련 모듈별 Changelog.  

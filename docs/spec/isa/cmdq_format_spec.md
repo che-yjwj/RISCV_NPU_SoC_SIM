@@ -4,8 +4,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->  
-**Owner:** ISA / Compiler Architect  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -87,6 +87,24 @@ CMDQ는 엔트리 리스트로 구성된다.
 
 엔트리들은 0-based index를 가지며, barrier/sync는 이 인덱스를 참조한다.
 
+### 4.1 Mini CMDQ 예시
+
+```json
+{
+  "cmdq": [
+    {"opcode": "DMA_LOAD_TILE", "id": 0, "layer_id": "gemm0", "deps_before": []},
+    {"opcode": "TE_GEMM_TILE", "id": 1, "layer_id": "gemm0", "deps_before": [0]},
+    {"opcode": "END", "id": 2, "layer_id": null, "deps_before": [1]}
+  ],
+  "metadata": {
+    "version": "1.0",
+    "graph_name": "toy_gemm"
+  }
+}
+```
+
+위처럼 3개의 엔트리만으로도 “load → compute → 종료” 플로우를 표현할 수 있다.
+
 ---
 
 ## 5. 공통 엔트리 스키마 (Common Entry Schema)
@@ -125,6 +143,24 @@ CMDQ는 엔트리 리스트로 구성된다.
   보다 fine-grained한 타일 레벨 의존성은 주로 `deps_before`를 사용한다.  
 
 ---
+
+### 5.2 필드 필수/옵션/예약 구분
+
+| 필드 | 적용 범위 | 필수 여부 | 비고 |
+| --- | --- | --- | --- |
+| `opcode` | 모든 엔트리 | 필수 | 지원 enum 중 하나 |
+| `id` | 모든 엔트리 | 필수 | 0-based, 미지정 시 generator가 auto-assign |
+| `layer_id` | 대부분 | 권장 | `null` 허용 (SYNC/END 등) |
+| `deps_before` | 모든 엔트리 | 필수 | 빈 배열 허용, barrier 표현 |
+| `deps_after` | 필요 시 | 옵션 | backward dependency 표기, 없는 경우 `[]` |
+| `debug` | 모든 엔트리 | 옵션 | 코멘트/소스 추적용 |
+| `tensor_role`, `qbits` | DMA 계열 | 필수 | role=`weight|activation|kv|aux` |
+| `dram_addr`, `spm_bank`, `spm_offset`, `num_elements` | DMA 계열 | 필수 | 주소·용량 정보 |
+| `te_id`, `ifm_bank`, `wgt_bank`, `ofm_bank`, `m/n/k` | TE 계열 | 필수 | 연산 파라미터 |
+| `ve_id`, `in_bank`, `out_bank`, `length` | VE 계열 | 필수 | 벡터 처리 정보 |
+| `reserved_*` | 확장용 | 예약 | 새 필드 추가 시 `reserved_foo` prefix 사용, 기본 `null` |
+
+> 예약 필드(`reserved_*`)는 parser가 무시해도 되지만, 추후 버전에서 의미가 지정될 수 있으므로 생성기는 0 또는 null로 초기화해야 한다.
 
 ## 6. Opcode 카테고리 정의
 

@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** Vector Engine Architect  
-**Last Updated:** YYYY-MM-DD  
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02  
 
 ---
 
@@ -417,3 +417,54 @@ TraceEngine과 결합하여 VE 타일의 성능 병목 분석 가능
 이 스펙은 VE 동작 모델의 기준(reference)이며,
 새로운 LLM 연산이나 bitwidth 스키마가 추가될 때
 본 문서를 기반으로 확장해야 한다.
+
+---
+
+# 16. 예시: LayerNorm vs Softmax latency 비교
+
+아래는 동일 hidden size에서 LayerNorm과 Softmax의 latency 차이를 보여주는 예시이다.
+
+공통 파라미터:
+
+```text
+lanes = 64
+ops_per_lane_factor = 1
+f_a(8) = 1.0 → ops_per_cycle_eff = 64
+init_cycles = 8
+finalize_cycles = 4
+reduction_pipeline_latency = 8
+length = 4096
+log2(4096) = 12
+```
+
+## 16.1 LayerNorm
+
+```text
+elementwise_cycles = ceil(4096 / 64) = 64
+reduction_cycles   = 8 + 12 = 20
+
+LN_cycles =
+  init_cycles(8)
+  + reduction_cycles(20)
+  + elementwise_cycles(64)
+  + finalize_cycles(4)
+  = 96 cycles
+```
+
+## 16.2 Softmax (exp + 두 번의 reduction)
+
+Softmax는 `max reduction` + `exp pass` + `sum reduction` + `normalize`를 포함한다.
+
+```text
+exp pass elementwise_cycles ≈ 64 (동일 ops_per_cycle_eff 가정)
+Softmax_cycles ≈
+  init_cycles(8)
+  + reduction_cycles_max(20)
+  + exp_pass(64)
+  + reduction_cycles_sum(20)
+  + normalize_pass(64)
+  + finalize_cycles(4)
+  = 180 cycles
+```
+
+동일 길이의 벡터라도 Softmax가 LayerNorm보다 약 2배 가까운 latency를 가질 수 있음을 보여주며, VE 타이밍 모델에서 어떤 연산이 병목이 될지 판단하는 기준으로 사용할 수 있다.

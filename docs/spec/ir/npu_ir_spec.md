@@ -3,8 +3,8 @@
 **Version:** v1.0  
 **Status:** Stable Draft  
 <!-- status: complete -->  
-**Owner:** System Architect  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -193,6 +193,19 @@ LayerIR은 IR에서 가장 중요한 단위이며,
 ```
 
 KV Cache는 일반 activation과 bitwidth가 다르며, 메모리 모델과 직접 연결된다.
+
+### 5.3 LayerIR 타입 요약 표
+
+| Op Type | 주요 필드 | 필수 Quantization | CMDQ 매핑 |
+| --- | --- | --- | --- |
+| `GEMM`, `MATMUL` | `shape{M,N,K}`, `attributes.alpha/beta` | `qbits_weight`, `qbits_activation` | `DMA_LOAD_TILE` + `TE_GEMM_TILE` + `DMA_STORE_TILE` |
+| `CONV_2D`, `DEPTHWISE_CONV` | `kernel`, `stride`, `padding` | `qbits_weight`, `qbits_activation` | (옵션) `TE_CONV_TILE` 또는 GEMM 변환 |
+| `QKV_PROJ`, `ATTN_SCORES`, `ATTN_OUTPUT` | `heads`, `dim`, `seq` | `qbits_weight`, `qbits_activation`, `qbits_kv`(옵션) | TE GEMM + VE Softmax/Scale 조합 |
+| `LAYER_NORM`, `RMS_NORM`, `SOFTMAX`, `GELU` | `length`, `eps`, `approx_mode` | `qbits_activation` | `VE_LAYERNORM_TILE`, `VE_SOFTMAX_TILE` 등 |
+| `KV_UPDATE`, `KV_CACHE_RESIZE` | `seq_new`, `heads`, `dim` | `qbits_kv` | DMA LOAD/STORE with `tensor_role="kv"` |
+| `IO` (`INPUT`, `OUTPUT`, `EMBEDDING_LOOKUP`) | `layout`, `role` | optional | DMA + Host I/O 연동 |
+
+> 위 표는 구현자가 LayerIR → CMDQ 변환 시 참조하는 “golden mapping”으로, 신규 op를 추가할 때 요구 필드와 quantization 정책을 빠르게 확인하기 위한 것이다.
 
 ---
 
@@ -399,8 +412,13 @@ IR에는 아래 메타데이터가 포함된다.
 
 **변경 정책**
 
-- 뒤로 호환 유지(backward-compatible) 가능하도록 설계.  
-- opcode 확장과 함께 IR 필드 확장 가능.  
+- **버전 규칙**: `ir_version = <major>.<minor>` (예: `1.0`).  
+  - Major 증가: 호환되지 않는 필드 제거/의미 변경이 있을 때.  
+  - Minor 증가: 필드 추가 등 backward-compatible 변경.
+- **필드 추가**: 반드시 optional 기본값을 정의하고, 구버전 IR에서도 무시 가능하게 설계.
+- **deprecated 처리**: 필드 제거 전 최소 1개 minor 버전 동안 `deprecated: true` 메타데이터를 선언.
+- **CMDQ/Trace 연동**: IR 버전은 CMDQ/Trace metadata의 `ir_version`과 동일하게 기록하여 디버깅 시점의 일관성을 보장.
+- **문서화 절차**: 모든 변경은 `docs/process/versioning_and_changelog_guide.md`의 규칙에 따라 changelog에 기록한다.
 
 ---
 

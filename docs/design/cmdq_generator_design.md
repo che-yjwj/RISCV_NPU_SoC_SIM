@@ -2,8 +2,8 @@
 **Path:** `docs/design/cmdq_generator_design.md`  
 **Status:** Stable Draft  
 <!-- status: complete -->
-**Owner:** TBD  
-**Last Updated:** YYYY-MM-DD
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 ---
 
@@ -74,6 +74,39 @@ for e in schedule.entries:
 - VE:
   - `opcode`: `VE_*_TILE`
   - `ve_id`, `length`, `qbits_activation`, 추가 attr.
+
+### 4.4 Mini Golden CMDQ 예시
+
+아래는 단일 GEMM + LayerNorm 레이어에 대한 Schedule → CMDQ 매핑 예시이다.
+
+```text
+Schedule entries (id, type, deps_before):
+  e0: DMA_LOAD_IFM   deps=[]
+  e1: DMA_LOAD_WGT   deps=[]
+  e2: TE_GEMM_TILE   deps=[e0, e1]
+  e3: VE_LAYERNORM   deps=[e2]
+  e4: DMA_STORE_OFM  deps=[e3]
+```
+
+CmdqGenerator 결과 (요약):
+
+```json
+{
+  "cmdq": [
+    { "opcode": "DMA_LOAD_TILE",   "id": 0, "layer_id": "ffn_0", "deps_before": [] },
+    { "opcode": "DMA_LOAD_TILE",   "id": 1, "layer_id": "ffn_0", "deps_before": [] },
+    { "opcode": "TE_GEMM_TILE",    "id": 2, "layer_id": "ffn_0", "deps_before": [0, 1] },
+    { "opcode": "VE_LAYERNORM_TILE","id": 3,"layer_id": "ffn_0_ln","deps_before": [2] },
+    { "opcode": "DMA_STORE_TILE",  "id": 4, "layer_id": "ffn_0", "deps_before": [3] },
+    { "opcode": "END",             "id": 5, "layer_id": null,    "deps_before": [4] }
+  ]
+}
+```
+
+이 예시는 다음을 보여 준다.
+- Schedule entry id → CMDQ `id` 재부여 및 `deps_before` 인덱스 매핑.
+- IR의 `layer_id`가 CMDQ 엔트리에 보존되어 trace와 join할 수 있음.
+- 마지막 `END` 엔트리는 StaticScheduler가 생성하거나, CmdqGenerator가 tail에 자동 추가할 수 있다(구현 선택 사항).
 
 ## 5. 인터페이스
 - `CmdqGenerator.generate(schedule, spm_alloc, ir, config) -> CmdqArtifact`
