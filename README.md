@@ -1,4 +1,7 @@
 # RISCV_NPU_SoC_SIM
+**Status:** Active  
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-02
 
 RISC-V 기반 SoC 상에서 동작하는 NPU 아키텍처를 대상으로 하는  
 정적 스케줄 기반 시뮬레이터 & 오프라인 컴파일러용 레포지토리입니다.  
@@ -23,7 +26,26 @@ RISC-V 기반 SoC 상에서 동작하는 NPU 아키텍처를 대상으로 하는
 
 ---
 
-## 2. 디렉터리 구조 (요약)
+### 타깃 및 범위
+
+- **타깃 워크로드**: 모바일·엣지 환경의 LLM Inference(특히 Prefill/Decode 분리와 KV cache 재사용 시나리오).
+- **SoC 구성**: RISC-V CPU + AXI 기반 NPU + DRAM/NoC/Interrupt, 정적 스케줄 기반 NPU 엔진(TE/VE/DMA/SPM).
+- **활용 목적**: 정적 스케줄링의 성능/메모리 특성을 빠르게 검증하는 연구·실험용 시뮬레이터 및 오프라인 컴파일러.
+
+---
+
+## 2. 현재 구현 상태
+
+| 영역 | 상태 | 비고 |
+| --- | --- | --- |
+| 문서 (Spec/Design/Test) | Stable Draft | SDD 기반 문서가 우선 정비되어 있으며, 개선 안은 `docs/process/doc_improvement_tasks.md`로 추적 |
+| 오프라인 컴파일러 코드 (`src/compiler/`) | Planned | 스켈레톤만 존재, 문서를 기준으로 단계별 구현 예정 |
+| NPU 시뮬레이터 (`src/simulator/`) | Planned | Global cycle loop/엔진 모델 구현 전 단계 |
+| 공통 유틸/테스트 (`src/common/`, `tests/`) | Planned | Golden trace/테스트 플랜은 문서로 정의, 실제 코드/케이스는 차후 추가 |
+
+---
+
+## 3. 디렉터리 구조 (요약)
 
 ```text
 README.md             # 프로젝트 상위 소개
@@ -45,36 +67,26 @@ tools/                # 유틸리티 스크립트 (문서 상태 체크 등)
 
 ---
 
-## 3. 문서 읽기 순서
+## 4. 문서 읽기 순서
 
 이 레포지토리는 코드보다 문서를 먼저 업데이트하는 **Spec-Driven Development** 방식을 사용합니다.  
-처음 레포지토리를 읽을 때는 다음 순서를 추천합니다.
+처음 레포지토리를 읽을 때는 아래 표 순서를 추천합니다.
 
-1. 상위 목차
-   - `docs/README_SPEC.md`
-2. 전체 아키텍처와 데이터 플로
-   - `docs/overview/system_architecture.md`
-   - `docs/overview/dataflow_overview.md`
-   - `docs/overview/module_responsibilities.md`
-3. 핵심 스펙 (IR / ISA / Timing / Quantization / Trace)
-   - IR:  
-     - `docs/spec/ir/npu_ir_spec.md`  
-     - `docs/spec/ir/quantization_ir_extension.md`  
-     - `docs/spec/ir/tensor_metadata_spec.md`
-   - ISA / CMDQ:  
-     - `docs/spec/isa/cmdq_overview.md`  
-     - `docs/spec/isa/cmdq_format_spec.md`  
-     - `docs/spec/isa/opcode_set_definition.md`
-   - Timing / Quantization / Trace:  
-     - `docs/spec/timing/*.md`  
-     - `docs/spec/quantization/*.md`  
-     - `docs/spec/trace/*.md`
-4. 설계 및 테스트
-   - Design: `docs/design/*.md`
-   - Test: `docs/test/*.md`
+| 순서 | 레벨 | 문서 | 설명 |
+| --- | --- | --- | --- |
+| 1 | 필수 | `docs/README_SPEC.md` | 전체 문서 인덱스와 구조 파악 |
+| 2 | 필수 | `docs/overview/system_architecture.md` | 오프라인 컴파일러 + 시뮬레이터 아키텍처 개요 |
+| 3 | 권장 | `docs/overview/dataflow_overview.md`, `docs/overview/module_responsibilities.md` | 데이터 플로우와 모듈 책임 정리 |
+| 4 | 필수 | `docs/spec/ir/*.md` | 내부 IR, 양자화 확장, 텐서 메타데이터 스펙 |
+| 5 | 필수 | `docs/spec/isa/*.md` | CMDQ 개념/포맷/opcode 정의 |
+| 6 | 권장 | `docs/spec/timing/*.md` | DMA/TE/VE/SPM/Bus 타이밍 모델 |
+| 7 | 권장 | `docs/spec/quantization/*.md`, `docs/spec/trace/*.md` | Quantization 정책과 Trace/Visualization 스펙 |
+| 8 | 참고 | `docs/design/*.md` | 컴파일러·시뮬레이터·툴 설계 세부 |
+| 9 | 참고 | `docs/test/*.md` | 테스트 전략/계획, Golden trace 요구사항 |
+
 ---
 
-## 4. 개발 및 기여 가이드 (요약)
+## 5. 개발 및 기여 가이드 (요약)
 
 새 기능/확장을 추가할 때는 다음 순서를 따르는 것을 원칙으로 합니다.
 
