@@ -259,6 +259,25 @@ Codex Vibe Coding 시에는
 
 ## 7. 결론
 
+Codex 기반 Vibe Coding을 사용할 때에도,  
+문서 리뷰와 개선 작업의 단일 흐름은 다음 세 문서를 중심으로 유지한다.
+
+- 리뷰 스냅샷: `docs/process/review_by_chatgpt_v1.md`, `docs/process/review_by_chatgpt_v2.md`  
+- 요약 및 기준선: `docs/process/documentation_review_summary.md`  
+- 실행 가능한 체크리스트: `docs/process/doc_improvement_tasks.md`
+
+실제 작업 순서는 다음 패턴을 따른다.
+
+1. 리뷰 스냅샷(v1/v2)을 참고해 개선 방향을 이해한다.  
+2. `documentation_review_summary.md`에서 해당 영역의 요약/권장사항을 확인한다.  
+3. `doc_improvement_tasks.md`에서 관련 Task를 선택하거나 신규 항목을 추가한다.  
+4. 선택한 Task와 연결된 Spec/Design/Test 문서들을 Codex 프롬프트에 포함해 구현/수정을 진행한다.  
+5. 작업이 끝나면 Task 상태를 업데이트하고, 필요 시 summary나 review_v* 문서를 갱신한다.
+
+이 흐름을 따르면, Codex는 어디까지나  
+“문서에서 정의된 설계를 빠르게 구현하고 검증하는 도우미”로 남고,  
+문서 구조와 아키텍처 의사결정은 항상 사람이 주도하게 된다.
+
 이 가이드는 다음을 보장한다.
 
 - Codex를 사용하면서도 SDD의 원칙(문서 우선, Spec/Design 중심)을 잃지 않는다.

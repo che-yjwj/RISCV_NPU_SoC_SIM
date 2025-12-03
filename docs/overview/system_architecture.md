@@ -248,7 +248,8 @@ Simulator는 cycle 기반 글로벌 loop를 중심으로 동작한다.
 
 ## 5. 데이터 플로우 (Dataflow Architecture)
 
-전체 데이터 플로우는 아래와 같다:
+전체 데이터 플로우는 아래와 같다.  
+자세한 단계별 설명과 LLM/Prefill/Decode 시나리오는 `docs/overview/dataflow_overview.md`에서 다룬다.
 
 ```text
 [ONNX Model]
@@ -273,7 +274,8 @@ Simulator는 cycle 기반 글로벌 loop를 중심으로 동작한다.
 ```
 
 모든 단계는 명확한 입력/출력 데이터 구조를 가지며,  
-Spec 문서(각 IR/ISA/Timing 스펙)에 의해 정의된 형식을 따른다.
+IR/ISA/Timing/Quant/Trace 스펙(`docs/spec/**`)에 의해 정의된 형식을 따른다.  
+Dataflow 관점에서의 산출물/연결 관계는 `dataflow_overview.md`에서 보완적으로 설명한다.
 
 ---
 

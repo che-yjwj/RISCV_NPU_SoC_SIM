@@ -37,6 +37,14 @@
 
 Baseline/reference 값은 `tests/data/perf/reference/*.json` 등에 저장하고, 해당 파일 경로를 테스트 코드/CI 설정에서 참조한다.
 
+### 3.2 Spec/Design ↔ PV 매핑 표
+
+| PV ID     | Spec 문서 | Design 문서 |
+| --- | --- | --- |
+| PV-MLP-01  | `docs/spec/timing/te_timing_spec.md`, `docs/spec/timing/dma_timing_spec.md` | `docs/design/te_engine_design.md`, `docs/design/dma_engine_design.md` |
+| PV-ATTN-01 | `docs/spec/ir/npu_ir_spec.md`, `docs/spec/quantization/kv_cache_quantization_spec.md`, `docs/spec/timing/*.md` | `docs/design/ir_builder_design.md`, `docs/design/tiling_planner_design.md`, `docs/design/npu_simulator_core_design.md` |
+| PV-LLM-01  | `docs/overview/dataflow_overview.md` 4장(LLM Dataflow), `docs/spec/trace/trace_format_spec.md` | `docs/design/offline_compiler_design.md`, `docs/design/npu_simulator_core_design.md`, `docs/design/visualizer_design.md` |
+
 ## 4. 절차 / 자동화
 - 입력:
   - workload 정의(모델, 시퀀스 길이, bitwidth, 엔진 구성).  

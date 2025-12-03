@@ -12,6 +12,7 @@ StaticScheduler는 TileGraph + SPM allocation + 엔진 구성 정보를 기반�
 결과는 CMDQGenerator가 바로 사용할 수 있는 스케줄 DAG 형태가 된다.
 
 관련 스펙:
+- `docs/spec/ir/npu_ir_spec.md`
 - `docs/spec/isa/cmdq_overview.md`
 - `docs/overview/dataflow_overview.md`
 
@@ -109,6 +110,11 @@ while not ready_queue.empty():
 - 2개의 TE를 가진 환경에서:
   - TileGraph의 독립 타일들이 TE0/TE1에 번갈아 배정되고,  
     deps가 없는 타일은 최대한 병렬로 실행되도록 스케줄이 생성되는지 확인.
+- MatMul + GELU 블록에 대해서는:
+  - `docs/overview/dataflow_overview.md` 3.9 섹션과  
+    `docs/spec/ir/npu_ir_spec.md`의 FFN 예제,  
+    `docs/spec/isa/cmdq_format_spec.md` 15장의 CMDQ 시퀀스를 함께 참고하면  
+    IR → TileGraph → ScheduleDAG → CMDQ로 이어지는 흐름을 end-to-end로 추적할 수 있다.
 
 ## 7. 향후 확장
 - critical path 기반 우선순위 스케줄링.

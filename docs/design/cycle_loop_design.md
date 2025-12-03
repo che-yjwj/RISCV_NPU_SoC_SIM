@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 
 ---
 
@@ -13,6 +13,7 @@ Global cycle loop는 시뮬레이터의 “메인 루프”로, **모든 엔진/
 
 관련 스펙:
 - `docs/overview/system_architecture.md`
+- `docs/spec/isa/cmdq_overview.md`
 - `docs/spec/timing/*.md`
 - `docs/spec/trace/trace_format_spec.md`
 

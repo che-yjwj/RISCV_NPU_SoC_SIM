@@ -14,6 +14,7 @@ CmdqGenerator는 StaticScheduler와 SPMAllocator의 결과를 사용해 **CMDQ J
 관련 스펙:
 - `docs/spec/isa/cmdq_overview.md`
 - `docs/spec/isa/cmdq_format_spec.md`
+ - 파이프라인 맵: `docs/README_SPEC.md` #5
 
 ## 2. 책임
 - **입력**

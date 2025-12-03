@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 
 ---
 
@@ -75,6 +75,23 @@ class DmaJob:
 
 - QUEUED → TRANSFERRING: Bus/NoC/SPM 여건이 허용되는 순간 시작.
 - TRANSFERRING → COMPLETED: 모든 bytes 전송 후 completion 이벤트 및 trace 기록.
+
+### 3.4 파이프라인 개략 다이어그램
+
+```text
+CMDQ(DMA_*_TILE)
+      |
+      v
+ [DmaJob 생성] --> [QUEUE] --> [TRANSFERRING] --> [COMPLETED]
+      |                              |
+      |                        DRAM/Bus/NoC/SPM
+      |                        bytes/latency 계산
+      v
+ TraceEngine (ENGINE_EVENT, MEM_ACCESS_EVENT)
+```
+
+- Timing 세부 공식은 `dma_timing_spec.md`를 따른다.  
+- DMAEngine은 job 상태 전이와 bytes/latency 계산, Trace 기록을 담당한다.
 
 ## 4. 알고리즘 / 플로우
 
