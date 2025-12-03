@@ -25,6 +25,9 @@ cycle-based 시뮬레이터에서 **정확한 latency, bandwidth, contention 모
 
 본 스펙은 위 요구들을 충족하도록 **DMA Timing 규칙**을 정의한다.
 
+또한, 실제 시뮬레이션에서 사용할 수 있는 **config/profile 예시**를 제공하여  
+Timing spec ↔ 시뮬레이터 설정 파일 간 매핑을 명확히 한다.
+
 ---
 
 # 2. DMAEngine Overview
@@ -43,6 +46,30 @@ latency = address_alignment_penalty
 ```
 
 각 요소는 이후 섹션에서 공식적으로 정의한다.
+
+---
+
+# 2.1 예시 DMA Timing Config (JSON 스니펫)
+
+아래는 시뮬레이터 설정 파일에서 사용할 수 있는 DMA timing 관련 config 예시이다.
+
+```json
+{
+  "dma_timing": {
+    "profile": "mobile_lpddr4x_baseline",
+    "bus_width_bytes": 32,
+    "dram_burst_length": 16,
+    "dram_burst_cycles": 12,
+    "peak_bw_bytes_per_cycle": 64,
+    "alignment_bytes": 64,
+    "contention_model": "shared_bw_v1"
+  }
+}
+```
+
+- `profile`: 사람이 읽기 좋은 이름(예: mobile_lpddr4x_baseline, server_hbm_test 등).  
+- 나머지 필드는 본 문서 각 섹션의 파라미터와 1:1로 매핑된다.  
+- 향후 여러 profile을 지원할 때는 동일 schema를 사용하고 값만 바꿔서 구성한다.
 
 ---
 

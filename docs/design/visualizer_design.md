@@ -118,6 +118,29 @@ Trace JSON
     - `render_gantt(trace_path, out_path)`  
     - `render_bandwidth_heatmap(trace_path, out_path)`  
     - `render_utilization(trace_path, out_path)`  
+
+## 6. 튜토리얼: Trace 생성 → Golden 비교 → 시각화
+
+아래는 처음 보는 사람이 따라 할 수 있는 최소 워크플로우 예시이다.
+
+1. **Trace 생성**  
+   - Integration 테스트(예: IT-MLP-01)나 Performance 검증(PV-LLM-01)을 실행해 Trace JSON을 생성한다.  
+   - 출력 위치는 보통 `tests/artifacts/trace/<name>.json` 또는 설정된 output 디렉터리이다.
+2. **Golden 비교 (선택)**  
+   - `docs/test/golden_trace_examples.md`에서 대응하는 Golden ID(GT-MLP-01 등)를 찾고, golden trace 경로를 확인한다.  
+   - 회귀 테스트(예: `tests/regression/test_golden_trace.py`)나 간단한 비교 스크립트로 현재 Trace와 golden trace를 비교한다.
+3. **시각화 실행**  
+   - Visualizer 라이브러리/CLI에서:
+     - `visualizer.render_all("tests/artifacts/trace/mlp_run.json", "out/vis/mlp_run/", config)`  
+   - 또는 개별 뷰를 호출:
+     - `render_gantt`, `render_bandwidth_heatmap`, `render_utilization` 등.
+4. **분석 포인트**  
+   - Gantt: TE/VE/DMA 타임라인이 Dataflow/Design 문서와 일치하는지 확인.  
+   - Bandwidth Heatmap: DRAM traffic 패턴이 Timing/Memory 스펙에서 예상한 범위인지 확인.  
+   - Utilization: 병목 엔진(TE/VE/DMA)을 식별하고, 타일링/스케줄 변경 아이디어를 얻는다.
+
+자세한 trace 필드 정의는 `trace_format_spec.md`,  
+Golden trace 구성은 `golden_trace_examples.md`를 함께 참고한다.
 - 설정/파라미터:
   - 시간 범위, 레이어/엔진 필터, 색상 테마, 출력 포맷(SVG/PNG/HTML/CSV).
 

@@ -41,9 +41,13 @@
 docs/
 │
 ├── overview/
+│   ├── system_architecture_overview.md
 │   ├── system_architecture.md
+│   ├── compute_dataflow_overview.md
 │   ├── dataflow_overview.md
-│   └── module_responsibilities.md
+│   ├── memory_noc_overview.md
+│   ├── module_responsibilities.md
+│   └── sdd_devflow_overview.md
 │
 ├── spec/
 │   ├── ir/
@@ -113,9 +117,13 @@ docs/
 
 NPU 시스템의 큰 그림, 데이터 흐름, 책임 분할 문서들
 
-- **system_architecture.md** *(필수)* — 전체 NPU + 컴파일러 + 시뮬레이터 아키텍처 정의
-- **dataflow_overview.md** *(권장)* — ONNX → IR → TileGraph → CMDQ → Simulator 경로 설명
+- **system_architecture_overview.md** *(필수)* — 전체 아키텍처를 한 페이지에서 빠르게 파악하기 위한 요약본
+- **system_architecture.md** *(필수)* — 전체 NPU + 컴파일러 + 시뮬레이터 아키텍처 상세 정의
+- **compute_dataflow_overview.md** *(권장)* — ONNX → IR → TileGraph → Schedule → CMDQ → TE/VE 실행까지의 compute path 개요
+- **dataflow_overview.md** *(권장)* — ONNX → IR → TileGraph → CMDQ → Simulator → Trace 전체 데이터 플로우 설명
+- **memory_noc_overview.md** *(권장)* — DRAM/Bus/NoC/SPM 및 DMA 관점의 메모리/네트워크 구조 요약
 - **module_responsibilities.md** *(권장)* — 각 모듈의 입력/출력 및 책임(SRP 기반)
+- **sdd_devflow_overview.md** *(권장)* — Spec-Driven Development 기반 개발 흐름(Devflow) 상위 요약
     
 
 ---
@@ -249,8 +257,70 @@ Spec 문서의 “설명된 내용을 실제로 어떻게 구현할지” 정의
 
 # 4. 이 파일을 어떻게 사용하면 좋은가?
 
-- 이 문서(`README_SPEC.md`)는 **레포 문서의 최상위 목차**로 사용
-- 모든 기여자는 기능 추가 시 이 문서의 spec 항목을 먼저 읽어야 함
-- 스펙을 기반으로 실제 구현이 이루어지므로
-    
-    “설계-문서-코드-테스트”가 **완전히 일치**하는 구조가 된다
+## 4.1 Documentation Reading Guide (빠른 읽기 순서)
+
+새로 레포를 읽는 기여자에게 추천하는 기본 순서는 다음과 같다.
+
+1. **프로젝트 개요 및 디렉터리 구조**
+   - `README.md` — 프로젝트 비전/범위/디렉터리 구조, 현재 구현 상태
+   - `docs/README_SPEC.md` — 지금 보고 있는 문서, 전체 문서 인덱스/우선순위
+2. **시스템 전체 그림**
+   - `docs/overview/system_architecture.md` — 오프라인 컴파일러 + 시뮬레이터 아키텍처 개요
+   - `docs/overview/dataflow_overview.md` — ONNX → IR → TileGraph → CMDQ → Simulator → Trace 데이터 흐름
+   - `docs/overview/module_responsibilities.md` — 모듈 책임/입출력/경계 정의
+3. **핵심 스펙 (IR / ISA / Timing / Quant / Trace)**
+   - `docs/spec/ir/*.md` — 내부 IR 구조, 텐서 메타데이터, IR-level quantization 표현
+   - `docs/spec/isa/*.md` — CMDQ 개념/포맷/opcode 정의
+   - `docs/spec/timing/*.md` — DMA/TE/VE/SPM/Bus/NoC timing 모델
+   - `docs/spec/quantization/*.md` — 전체 quantization 모델, bitwidth-memory 매핑, KV/mixed-precision 정책
+   - `docs/spec/trace/*.md` — trace 포맷 및 시각화 스펙
+4. **설계/테스트/프로세스**
+   - `docs/design/*.md` — 컴파일러/시뮬레이터/Visualizer 설계 세부
+   - `docs/test/*.md` — 테스트 전략/계획, golden trace 예시
+   - `docs/process/*.md` — SDD 워크플로, 기여/리뷰 가이드, 네이밍/버전 규칙
+
+이 순서를 따르면, **“무엇을 만들려는지 → 어떤 스펙인지 → 어떻게 설계/검증하는지”**를 자연스럽게 따라갈 수 있다.
+
+## 4.2 Codex/Vibe Coding 및 문서 개선과의 연계
+
+Codex 기반 Vibe Coding 또는 문서 개선 작업을 할 때는, 다음 세 문서를 함께 사용하는 것을 권장한다.
+
+- 리뷰 스냅샷:  
+  - `docs/process/review_by_chatgpt_v1.md`  
+  - `docs/process/review_by_chatgpt_v2.md`
+- 리뷰 요약/기준선:  
+  - `docs/process/documentation_review_summary.md`
+- 실행 가능한 체크리스트:  
+  - `docs/process/doc_improvement_tasks.md`
+
+추천 흐름은 다음과 같다.
+
+1. 작업하려는 영역의 리뷰 스냅샷(v1/v2)을 확인해 개선 방향을 이해한다.  
+2. `documentation_review_summary.md`에서 해당 계층(Overview/Spec/Design/Test 등)의 요약/권장사항을 읽는다.  
+3. `doc_improvement_tasks.md`에서 관련 Task를 선택하거나 신규 Task를 추가한다.  
+4. 이 인덱스 문서(`README_SPEC.md`)를 통해 필요한 Spec/Design/Test 문서 경로를 찾아 Codex 프롬프트에 포함한다.  
+5. 작업 완료 후, Task 상태와 관련 문서의 Last Updated/Status를 갱신한다.
+
+이 흐름을 통해, 이 파일은 단순 목차를 넘어  
+**“무엇을 먼저 읽고, 무엇을 어떻게 고칠지”를 안내하는 중앙 허브** 역할을 하게 된다.
+
+---
+
+# 5. IR → CMDQ → Cycle Loop 파이프라인 맵
+
+IR/ISA/CMDQ/Scheduler/Simulator를 하나의 흐름으로 보고 싶을 때는  
+아래 표를 기준으로 각 단계의 스펙·설계 문서를 따라가면 된다.
+
+| 단계 | 설명 | 주요 Spec 문서 | 주요 Design 문서 |
+| --- | --- | --- | --- |
+| 1. ONNX → IR | ONNX 그래프를 NPU IR(LayerIR/Tile-friendly 구조)로 변환 | `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md`, `docs/spec/ir/quantization_ir_extension.md` | `docs/design/ir_builder_design.md` |
+| 2. IR → TileGraph/MemoryPlan | LayerIR를 tile 단위 그래프로 분해하고 SPM(bank/offset) 계획 수립 | `docs/spec/ir/npu_ir_spec.md`, `docs/spec/timing/spm_model_spec.md` | `docs/design/tiling_planner_design.md`, `docs/design/spm_allocator_design.md` |
+| 3. TileGraph → 정적 스케줄 | TileGraph + SPM + 엔진 구성을 이용해 tile-level 실행 순서/의존성(ScheduleDAG) 생성 | `docs/spec/isa/cmdq_overview.md` | `docs/design/static_scheduler_design.md` |
+| 4. ScheduleDAG → CMDQ(JSON) | 스케줄 엔트리를 CMDQ 엔트리로 매핑하고 deps_before를 CMDQ index 기반으로 변환 | `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/spec/isa/opcode_set_definition.md` | `docs/design/cmdq_generator_design.md` |
+| 5. CMDQ → Cycle Loop 실행 | CMDQ를 ControlFSM가 fetch/issue하고, 엔진/타이밍 스펙에 따라 cycle loop에서 실행 | `docs/spec/isa/cmdq_overview.md`, `docs/spec/timing/*.md`, `docs/spec/trace/trace_format_spec.md` | `docs/design/control_fsm_design.md`, `docs/design/cycle_loop_design.md`, `docs/design/dma_engine_design.md`, `docs/design/te_engine_design.md`, `docs/design/ve_engine_design.md` |
+
+- 전체적인 데이터/제어 흐름 개요는 `docs/overview/dataflow_overview.md`,  
+  시스템 수준 아키텍처는 `docs/overview/system_architecture.md`를 함께 참고한다.  
+- 향후에는 하나의 공통 예제(예: 단일 MatMul+GELU 또는 작은 LLaMA block)를 기준으로  
+  각 단계의 artefact(ONNX → IR → TileGraph → ScheduleDAG → CMDQ → Trace)를  
+  위 문서들에 걸쳐 예시로 추가하는 것을 목표로 한다.

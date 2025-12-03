@@ -25,6 +25,13 @@ NPU IR의 구조, 데이터 모델, 노드/텐서 스키마, quantization 표현
 이 IR 스펙은 오프라인 컴파일러 전체의 단일 소스 오브 트루스이며,  
 타일링/스케줄링/CMDQ 생성 로직은 모두 본 문서에서 정의한 구조를 준수해야 한다.
 
+전체 파이프라인에서의 위치는 다음과 같다.
+
+- ONNX → IR 변환: `docs/design/ir_builder_design.md`  
+- IR → TileGraph/MemoryPlan: `docs/design/tiling_planner_design.md`, `docs/design/spm_allocator_design.md`  
+- 이후 TileGraph/MemoryPlan → ScheduleDAG → CMDQ → Cycle Loop 흐름은  
+  `docs/README_SPEC.md`의 “IR → CMDQ → Cycle Loop 파이프라인 맵”을 참고한다.
+
 ---
 
 ## 2. 설계 철학 (Design Principles)
@@ -378,7 +385,35 @@ TE parallelism이 반영된다.
 
 ---
 
-## 11. LLM Friendly IR 확장
+## 11. 예제: 작은 FFN 블록 (MatMul + GELU)
+
+`docs/overview/dataflow_overview.md` 3.9 섹션에서 사용한  
+단일 MatMul + GELU 블록은 IR 관점에서 다음과 같이 표현된다.
+
+- LayerIR:
+  - `GEMM` (입력 `hidden`, weight `W_ffn`, 출력 `ffn_out`)  
+  - `GELU` (입력 `ffn_out`, 출력 `ffn_act`)  
+- TensorIR:
+  - `hidden`: role=`activation`, qbits=8  
+  - `W_ffn`: role=`weight`, qbits=4  
+  - `ffn_out`, `ffn_act`: role=`activation`, qbits=8
+
+Tile 변환과 CMDQ 매핑은 다음과 같이 요약할 수 있다.
+
+1. TilingPlanner가 GEMM 레이어를 M dimension 기준으로 여러 tile(`GEMM_TILE_i`)로 분해.  
+2. SPMAllocator가 각 tile의 IFM/WGT/OFM를 SPM bank/offset에 배치.  
+3. StaticScheduler가 tile별로  
+   - `DMA_LOAD_TILE(ifm_i)` → `DMA_LOAD_TILE(wgt_i)` → `TE_GEMM_TILE(i)` → `VE_GELU_TILE(i)` → `DMA_STORE_TILE(ofm_i)`  
+   순서와 deps를 갖는 ScheduleDAG를 생성.  
+4. CmdqGenerator는 이 ScheduleDAG를 `cmdq_format_spec.md` 15장 예제와 같은 CMDQ JSON 시퀀스로 변환한다.
+
+이 예제를 통해, LayerIR/Tile/Tensor/Quantization 정보가  
+실제 CMDQ 엔트리 필드(`tensor_role`, `qbits_*`, `layer_id` 등)에  
+어떻게 반영되는지 end-to-end로 추적할 수 있다.
+
+---
+
+## 12. LLM Friendly IR 확장
 
 NPU IR은 다음 LLM 관련 연산을 직접 표현할 수 있도록 설계되었다.
 
@@ -397,7 +432,7 @@ NPU IR은 다음 LLM 관련 연산을 직접 표현할 수 있도록 설계되�
 
 ---
 
-## 12. IR 버전 관리 (Versioning)
+## 13. IR 버전 관리 (Versioning)
 
 IR에는 아래 메타데이터가 포함된다.
 

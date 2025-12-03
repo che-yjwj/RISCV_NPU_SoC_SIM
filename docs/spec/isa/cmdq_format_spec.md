@@ -491,9 +491,9 @@ Control FSM 관점에서 CMDQ 엔트리 하나의 처리 흐름은 다음과 같
 
 ---
 
-## 15. 예제: 하나의 Layer에 대한 CMDQ 시퀀스
+## 15. 예제: 하나의 FFN Layer에 대한 CMDQ 시퀀스
 
-간단한 GEMM + LayerNorm 레이어에 대한 CMDQ 예시는 다음과 같다.
+간단한 GEMM + LayerNorm 레이어(FFN 블록 일부)에 대한 CMDQ 예시는 다음과 같다.
 
 ```json
 {
@@ -589,6 +589,10 @@ Control FSM 관점에서 CMDQ 엔트리 하나의 처리 흐름은 다음과 같
 - LayerNorm  
 - output store  
 - 종료까지 전체 flow를 표현할 수 있다.  
+
+이 예제는 IR 스펙에서 설명한 MatMul+GELU/FFN 블록 예시와 동일한 계열이며,  
+`docs/overview/dataflow_overview.md` 3.9 섹션의 dataflow 설명과 함께 보면  
+IR → TileGraph → ScheduleDAG → CMDQ까지의 artefact 연결을 한 번에 이해할 수 있다.
 
 ---
 

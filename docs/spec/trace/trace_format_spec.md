@@ -48,6 +48,17 @@ Top-level 구조:
 
 각 필드는 아래 섹션에서 상세히 정의한다.
 
+Quantization/Timing/Tensor 메타데이터와의 연결은 다음과 같다.
+
+- `run_metadata` / `config_snapshot`에는  
+  - quantization 기본 설정(예: default qbits),  
+  - timing model 선택(`dma_model`, `te_model`, `ve_model`),  
+  - 메모리 구성(`dram_peak_bw_bytes_per_cycle`, `spm_banks` 등)이 기록된다.  
+- `timeline_events`의 ENGINE_EVENT 레코드는  
+  - CMDQ entry(`cmdq_format_spec.md`)와 IR node(`npu_ir_spec.md`)에서 온 `layer_id`, `qbits_*`, `tile_id` 정보를 참조한다.  
+- `summary_metrics`는  
+  - Timing 스펙(`docs/spec/timing/*.md`)과 Quantization 스펙(`docs/spec/quantization/*.md`)에서 정의한 bytes/latency/bandwidth 지표를 집계한 결과로 해석된다.
+
 # 3. version
 
 ```json
@@ -395,6 +406,23 @@ token별 bandwidth profile
 ```
 summary_metrics는 Trace 없이도 빠르게 비교/검색할 수 있는 정보이며,
 다수의 trace를 모아 실험 결과를 정리할 때 유용하다.
+
+# 9.1 튜토리얼: Trace 생성 → Golden 비교 → 시각화 (요약)
+
+Trace/Visualizer 관련 기본 워크플로우는 다음 세 단계로 요약된다.
+
+1. **Trace 생성**  
+   - Integration/Performance 테스트 시나리오(예: IT-MLP-01, PV-LLM-01)를 실행한다.  
+   - Simulator는 이 스펙에 맞는 Trace JSON을 `tests/artifacts/trace/*.json` 등에 출력한다.
+2. **Golden 비교 (선택적)**  
+   - `docs/test/golden_trace_examples.md`에서 Golden ID(GT-MLP-01 등)와 golden trace 경로를 확인한다.  
+   - 회귀 테스트(`tests/regression/test_golden_trace.py`) 또는 별도 도구로 현재 Trace와 golden trace를 비교한다.  
+3. **시각화**  
+   - Visualizer 모듈(`docs/design/visualizer_design.md`) 또는 도구에서 Trace JSON을 로드한다.  
+   - Gantt Timeline, Bandwidth Heatmap, Utilization Dashboard 등을 생성해 결과를 확인한다.
+
+이 튜토리얼 흐름은 Visualizer Design 문서의 “뷰 구성 개략 다이어그램”과 함께 읽으면,  
+처음 보는 사람도 Trace→Golden 비교→시각화까지 전체 워크플로우를 따라갈 수 있도록 돕는다.
 
 # 9. 파일 예시 (전체 예)
 간단한 예시:

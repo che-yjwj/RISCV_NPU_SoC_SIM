@@ -22,6 +22,21 @@
 CMDQ Overview는 ISA 스펙의 최상위 개념 문서로서  
 Offline Compiler, NPU Simulator, Trace/Visualizer 개발 전 반드시 참조해야 한다.
 
+전체 파이프라인에서 CMDQ의 위치는 다음과 같다.
+
+- IR/TileGraph/MemoryPlan/정적 스케줄의 상위 개념:  
+  - `docs/spec/ir/npu_ir_spec.md`  
+  - `docs/overview/dataflow_overview.md`  
+- StaticScheduler/TileGraph → ScheduleDAG → CMDQ 매핑:  
+  - `docs/design/static_scheduler_design.md`  
+  - `docs/design/cmdq_generator_design.md`  
+- CMDQ를 실제로 실행하는 Cycle Loop/엔진 구조:  
+  - `docs/design/control_fsm_design.md`  
+  - `docs/design/cycle_loop_design.md`  
+
+요약 파이프라인은 `docs/README_SPEC.md`의  
+“IR → CMDQ → Cycle Loop 파이프라인 맵” 섹션을 참고한다.
+
 ---
 
 # 2. CMDQ의 근본 개념 (What is CMDQ?)

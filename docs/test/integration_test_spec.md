@@ -36,6 +36,15 @@ Offline Compiler와 Simulator Core를 포함한 **엔드-투-엔드 및 모듈 �
 | IT-KV-01   | `tests/data/integration/onnx/llm_prefill_decode.onnx` | prefill/decode latency per token, KV bytes | Prefill/Decode 패턴 및 KV 재사용 확인 |
 | IT-ERR-01  | 의도적으로 잘못된 CMDQ/IR 스냅샷 | 에러 코드/메시지 | 에러 경로·검증 로직 테스트 |
 
+### 3.2 Spec/Design ↔ IT 매핑 표
+
+| IT ID     | Spec 문서 | Design 문서 |
+| --- | --- | --- |
+| IT-MLP-01  | `docs/overview/system_architecture.md`, `docs/spec/ir/npu_ir_spec.md`, `docs/spec/isa/cmdq_format_spec.md` | `docs/design/offline_compiler_design.md`, `docs/design/npu_simulator_core_design.md` |
+| IT-ATTN-01 | `docs/overview/dataflow_overview.md`, `docs/spec/ir/npu_ir_spec.md`, `docs/spec/quantization/kv_cache_quantization_spec.md` | `docs/design/ir_builder_design.md`, `docs/design/tiling_planner_design.md`, `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md` |
+| IT-KV-01   | `docs/overview/dataflow_overview.md` 4장(LLM Dataflow), `docs/spec/trace/trace_format_spec.md` | `docs/design/npu_simulator_core_design.md`, `docs/design/dma_engine_design.md`, `docs/design/visualizer_design.md` |
+| IT-ERR-01  | `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md` | `docs/design/control_fsm_design.md`, `docs/design/npu_simulator_core_design.md` |
+
 ## 4. 절차 / 자동화
 - 실행 단계:
   1. 테스트용 ONNX/Config 준비 (`tests/data/integration`).  

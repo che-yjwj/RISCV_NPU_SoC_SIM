@@ -8,17 +8,17 @@ Last Updated: YYYY-MM-DD
 
 1. 목적 (Purpose)
 
-이 문서는 NPU Simulator & Offline Compiler 전체 파이프라인의 데이터 흐름(Dataflow) 을 상위 수준에서 정의한다.
-데이터가:
+이 문서는 NPU Simulator & Offline Compiler 전체 파이프라인의 데이터 흐름(Dataflow)을 상위 수준에서 정의한다.  
+데이터가 다음과 같은 단계를 거치며:
 
 ONNX → IR → TileGraph → CMDQ → Simulator → Trace → Visualization
 
-까지 어떤 단계들을 거치며
-2) Mixed precision, tile, SPM allocation, TE/VE scheduling, KV cache, memory bandwidth
+Mixed precision, tile, SPM allocation, TE/VE scheduling, KV cache, memory bandwidth  
 등이 실제로 어떻게 흐름에 반영되는지를 정리한다.
 
-본 문서는 개발자/리뷰어가 전체 시스템을 빠르게 이해하고
-각 단계가 생산하는 산출물의 의미와 연계를 명확히 이해할 수 있도록 하는 상위 아키텍처 문서이다.
+본 문서는 개발자/리뷰어가 전체 시스템을 빠르게 이해하고  
+각 단계가 생산하는 산출물의 의미와 연계를 명확히 이해할 수 있도록 하는 상위 아키텍처 문서이며,  
+`docs/overview/system_architecture.md`와 함께 Overview 계층의 진입점 역할을 한다.
 
 2. 전체 Dataflow 요약
 
@@ -315,6 +315,57 @@ TE/VE Utilization Bars
 Memory Traffic Graph
 
 KV Cache Growth Graph (LLM-only)
+
+3.9 예제: 단일 MatMul + GELU 블록
+
+아래는 **단일 MatMul + GELU 블록**이 전체 파이프라인을 어떻게 통과하는지 간단히 보여주는 예시이다.
+
+1) ONNX 단계  
+- ONNX 그래프 일부:
+  - `MatMul(hidden, W)` → `GELU()`  
+- 이 시점에서는 NPU tile/엔진 구조, SPM, CMDQ 개념이 전혀 드러나지 않는다.
+
+2) IR Builder 단계 (`docs/design/ir_builder_design.md`, `docs/spec/ir/npu_ir_spec.md`)  
+- LayerIR:
+  - `GEMM` 레이어 + `GELU` 레이어 두 개로 표현.  
+- TensorIR:
+  - `hidden`, `W`, `matmul_out`, `gelu_out` 등 텐서가 명시되고, shape/layout/qbits가 붙는다.
+
+3) Tiling Planner & SPM Allocator (`tiling_planner_design.md`, `spm_allocator_design.md`)  
+- GEMM 레이어가 두 개의 tile로 분해된다고 가정:
+  - `GEMM_TILE_0`, `GEMM_TILE_1` (예: M dimension 기준 분할).  
+- 각 tile에 대해:
+  - IFM/WGT/OFM가 어떤 SPM bank/offset에 배치되는지 결정된다.
+
+4) Static Scheduler (`static_scheduler_design.md`)  
+- TileGraph + SPM 정보를 기반으로, 다음과 같은 logical schedule entries가 만들어질 수 있다(간단화):
+
+```text
+e0: DMA_LOAD_TILE  (ifm, tile0)   deps=[]
+e1: DMA_LOAD_TILE  (wgt, tile0)   deps=[]
+e2: TE_GEMM_TILE   (tile0)        deps=[e0, e1]
+e3: VE_GELU_TILE   (tile0)        deps=[e2]
+e4: DMA_STORE_TILE (ofm, tile0)   deps=[e3]
+```
+
+- 실제 구현에서는 tile1, prefetch용 DMA, 여러 TE/VE/엔진에 대한 배정이 추가된다.
+
+5) CMDQ Generator (`cmdq_generator_design.md`, `docs/spec/isa/cmdq_format_spec.md`)  
+- 위 Schedule entries가 CMDQ entry로 flatten 된다:
+  - `DMA_LOAD_TILE` / `TE_GEMM_TILE` / `VE_GELU_TILE` / `DMA_STORE_TILE` + 마지막 `END`.  
+- 각 CMDQ 엔트리에는:
+  - `engine_type`, `opcode`, `deps_before`, `spm_bank/offset`, `qbits_*`, `layer_id` 등이 채워진다.
+
+6) NPU Simulator & Cycle Loop (`cycle_loop_design.md`)  
+- ControlFSM가 CMDQ[0..N]을 순서대로 fetch하면서,  
+  - `deps_before` 조건이 만족되면 해당 DMA/TE/VE 엔진으로 issue.  
+- Engine들은 timing spec(`docs/spec/timing/*.md`)에 따라 latency를 계산하고,  
+  cycle loop에서 busy/free 상태와 DRAM/SPM traffic을 갱신한다.
+- TraceEngine은 각 엔트리의 `start_cycle`/`end_cycle`과 bandwidth/utilization을 기록한다.
+
+이 간단한 예제를 기준으로,  
+`docs/README_SPEC.md`의 파이프라인 맵과 각 Spec/Design 문서를 오가며  
+ONNX → IR → TileGraph → ScheduleDAG → CMDQ → Cycle Loop → Trace 흐름을 추적할 수 있다.
 
 4. LLM-Oriented Dataflow
 

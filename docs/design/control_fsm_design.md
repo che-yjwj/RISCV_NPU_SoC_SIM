@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 
 ---
 
@@ -39,6 +39,39 @@ Control FSM은 CMDQ를 순차적으로 해석하고, **deps와 엔진 상태를 
   - `state`: 위 상태 중 하나.
 - `ready_queues`:
   - 엔진 타입별 ready 리스트 (예: DMA_ready, TE_ready, VE_ready).
+
+### 3.3 Control FSM 플로우 다이어그램 (텍스트)
+
+```text
+        +---------+
+        |  IDLE   |
+        +---------+
+             |
+             v
+     +----------------+
+     |  SCAN_CMDQ     |  <-- deps_remaining, state 갱신
+     +----------------+
+             |
+             v
+ +------------------------+
+ | UPDATE_READY_SET       |  <-- deps_remaining==0 → READY
+ +------------------------+
+             |
+             v
+ +------------------------+
+ | ISSUE_TO_ENGINES       |  <-- 엔진 큐/상태 보고 issue 결정
+ +------------------------+
+             |
+      yes /  |  \ no
+   all done  |   more work
+             v
+        +---------+
+        |  DONE   |
+        +---------+
+```
+
+이 플로우는 `cycle_loop_design.md`에서 한 cycle마다 호출되는  
+`control_fsm.step_issue(cycle)`의 내부 동작을 개략적으로 표현한다.
 
 ### 3.2 상태 머신 개요
 ```text

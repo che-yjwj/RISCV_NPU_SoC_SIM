@@ -27,6 +27,15 @@
 
 각 항목은 trace_format_spec에 맞춘 단일 JSON 파일로 관리한다.
 
+### 3.2 Spec/Design ↔ Golden ID 매핑 표
+
+| Golden ID | Spec 문서 | Design 문서 |
+| --- | --- | --- |
+| GT-MLP-01  | `docs/spec/trace/trace_format_spec.md` | `docs/overview/system_architecture_overview.md`, `docs/design/npu_simulator_core_design.md` |
+| GT-CONV-01 | `docs/spec/trace/trace_format_spec.md` | `docs/design/dma_engine_design.md`, `docs/design/te_engine_design.md` |
+| GT-ATTN-01 | `docs/spec/trace/trace_format_spec.md`, `docs/overview/dataflow_overview.md` | `docs/design/ir_builder_design.md`, `docs/design/static_scheduler_design.md` |
+| GT-LLM-01  | `docs/spec/trace/trace_format_spec.md`, `docs/spec/quantization/kv_cache_quantization_spec.md` | `docs/design/npu_simulator_core_design.md`, `docs/design/visualizer_design.md` |
+
 ### 3.1 최소 비교 필드 예시
 
 Golden trace 비교 시 기본적으로 확인해야 할 필드는 다음과 같다.

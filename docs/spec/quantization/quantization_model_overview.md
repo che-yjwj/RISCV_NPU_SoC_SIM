@@ -31,6 +31,13 @@ ONNX → IRBuilder → Quantization Annotator → NPU IR(qbits 주입)
       → Simulator (DMA/TE/VE qbits 기반 모델)
 ```
 
+Quantization 메타데이터는 다음 스펙들과 밀접하게 연결된다.
+
+- IR 스펙: `docs/spec/ir/npu_ir_spec.md` (`qbits_weight`, `qbits_activation`, `qbits_kv` 필드)  
+- CMDQ 스펙: `docs/spec/isa/cmdq_format_spec.md` (`qbits`, `qbits_weight`, `qbits_activation` 필드)  
+- Timing 스펙: `docs/spec/timing/dma_timing_spec.md`, `te_timing_spec.md`, `ve_timing_spec.md` (bytes 계산 및 latency 모델)  
+- Trace 스펙: `docs/spec/trace/trace_format_spec.md` (ENGINE_EVENT/summary에서 qbits 및 bytes/latency 메트릭 기록)
+
 ## 5. Config 예시
 ```yaml
 quantization:

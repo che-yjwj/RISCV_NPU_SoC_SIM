@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 
 ---
 
@@ -54,6 +54,37 @@ NPU Simulator Core는 CMDQ를 입력으로 받아 **cycle 기반으로 DMA/TE/VE
   - 현재 cycle, CMDQ pointer, per-engine busy_until, 큐 길이, 통계 누적값.
 - `EngineEventQueue`
   - 엔진 completion 이벤트를 ControlFSM/CMDQExecutor에 전달.
+
+### 3.3 상위 플로우 다이어그램 (텍스트)
+
+```text
+          CMDQ(JSON) + Config
+                    |
+                    v
+        +------------------------+
+        |   SimulatorCore.init   |
+        |  - ControlFSM          |
+        |  - DMA/TE/VE Engines   |
+        |  - MemoryModel         |
+        |  - TraceEngine         |
+        +------------------------+
+                    |
+                    v
+        +------------------------+
+        |    GlobalCycleLoop     |
+        |  (cycle_loop_design)   |
+        +------------------------+
+                    |
+                    v
+        +------------------------+
+        |      Trace Output      |
+        |  (trace_format_spec)   |
+        +------------------------+
+```
+
+이 다이어그램은 SimulatorCore가 CMDQ/Config를 입력으로 받아  
+CycleLoop를 통해 엔진/메모리/Trace를 orchestration하고,  
+마지막에 Trace 파일을 산출하는 상위 흐름을 나타낸다.
 
 ## 4. 알고리즘 / 플로우
 
