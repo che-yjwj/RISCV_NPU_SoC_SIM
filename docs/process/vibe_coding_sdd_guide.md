@@ -262,7 +262,7 @@ Codex Vibe Coding 시에는
 Codex 기반 Vibe Coding을 사용할 때에도,  
 문서 리뷰와 개선 작업의 단일 흐름은 다음 세 문서를 중심으로 유지한다.
 
-- 리뷰 스냅샷: `docs/process/review_by_chatgpt_v1.md`, `docs/process/review_by_chatgpt_v2.md`  
+- 리뷰 스냅샷: `docs/process/archive/review_by_chatgpt_v1.md`, `docs/process/archive/review_by_chatgpt_v2.md`  
 - 요약 및 기준선: `docs/process/documentation_review_summary.md`  
 - 실행 가능한 체크리스트: `docs/process/doc_improvement_tasks.md`
 

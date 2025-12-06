@@ -61,6 +61,11 @@ Mixed precision, tile, SPM allocation, TE/VE scheduling, KV cache, memory bandwi
    │  Trace & Visualization  │
    └─────────────────────────┘
 
+2.1 Compute 중심 요약
+- 주요 경로: ONNX → IR Builder → Tiling Planner → Static Scheduler → CMDQ Generator → NPU Simulator Core(Control FSM + TE/VE).
+- 관련 문서: `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md`, `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/design/tiling_planner_design.md`, `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md`, `docs/design/npu_simulator_core_design.md`, `docs/design/te_engine_design.md`, `docs/design/ve_engine_design.md`
+- 메모리/NoC 관점은 `docs/overview/memory_noc_overview.md`, 개발 흐름 관점은 `docs/overview/sdd_devflow_overview.md`를 함께 참고한다.
+
 3. 단계별 Dataflow 상세
 3.1 ONNX Model
 

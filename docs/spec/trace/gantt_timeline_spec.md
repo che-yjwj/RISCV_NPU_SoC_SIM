@@ -4,7 +4,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-04
 
 ---
 
@@ -55,3 +55,43 @@ CLI/GUI 모두 JSON→SVG/PNG/HTML export를 지원.
 - stall 이벤트 오버레이.
 - multi-node 동기화 선 표현.
 - hot path 자동 강조.
+
+---
+
+## 8. LLaMA Prefill/Decode 타임라인 예시
+`llama_attention_timeline_full.md`를 기반으로, LLaMA Self-Attention에서 주로 관찰되는 타임라인 패턴을 요약한다. Trace 이벤트는 `trace_format_spec.md`의 `phase`/`token_index` 메타데이터를 사용해 Prefill/Decode 구간을 구분한다.
+
+### 8.1 연표(Phase별 주요 단계)
+
+| Phase | 주요 CMDQ/Trace 이벤트 | 엔진 |
+| --- | --- | --- |
+| Prefill – QKV Projection | `DMA_LOAD_TILE(X/Wq/Wk/Wv)` → `TE_MATMUL_TILE(Q/K/V)` | DMA, TE |
+| Prefill – KV Store | `KV_STORE_TILE(K_t)`, `KV_STORE_TILE(V_t)` | KV DMA |
+| Prefill – Output Projection | `TE_QKT_TILE`, `VE_SOFTMAX_TILE`, `TE_AV_TILE`, `TE_MATMUL_TILE`, `DMA_STORE_TILE` | TE, VE, DMA |
+| Decode – KV Load | `KV_LOAD_TILE(K_all/V_all)` (t 증가에 비례) | DMA |
+| Decode – QKᵀ/Softmax/Attn·V | `TE_QKT_TILE`, `VE_SOFTMAX_TILE`, `TE_AV_TILE` | TE, VE |
+| Decode – Output Projection | `TE_MATMUL_TILE`, `DMA_STORE_TILE` | TE, DMA |
+
+### 8.2 간단한 텍스트 타임라인
+
+```
+Prefill:
+ DMA : |--Load X/W--|    |--KV Store--|
+ TE  :      |--Q/K/V MatMul--|      |--QKᵀ--|      |--Attn·V--|   |--Out MatMul--|
+ VE  :                                |--Softmax--|
+ KV  :                  |--Store K/V--|
+ SYNC:          [wait]         [wait]       [wait]
+
+Decode (token loop):
+ DMA :      |--KV Load--|
+ TE  :            |--QKᵀ--|      |--Attn·V--|   |--Out MatMul--|
+ VE  :                 |--Softmax--|
+ SYNC:          [wait]        [wait]
+```
+
+### 8.3 시각화 팁
+- Prefill/Decode 경계에 `MARKER_EVENT`를 추가하여 타임라인 상단에 phase band를 그린다.
+- Token별 latency를 강조하려면 `TOKEN_EVENT`의 `start_cycle/end_cycle`을 사용해 상단에 별도 레인을 표시한다.
+- KV-load 지연이 전체 latency에 미치는 영향을 보기 위해 DMA 레인에 `stall_event` 오버레이를 추가한다.
+
+이 예시는 `docs/test/golden_trace_examples.md`의 `GT-LLM-01`와 연계해 시뮬레이터 타임라인 시각화를 검증할 때 활용할 수 있다.

@@ -1,10 +1,10 @@
 # Opcode Set Definition
 **Path:** `docs/spec/isa/opcode_set_definition.md`  
-**Version:** v1.0  
+**Version:** v1.1  
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** ISA Architect  
-**Last Updated:** YYYY-MM-DD  
+**Last Updated:** 2025-12-04  
 
 ---
 
@@ -28,7 +28,7 @@ CMDQ 기반 ISA에서 사용되는 **opcode 전체 집합과 카테고리**를 �
   - 예: `BARRIER`, `SYNC_GROUP`, `NOP`, `END`.
 - **LLM Extension Class**  
   - KV cache, rotary embedding, attention score 등 LLM 특화 연산.  
-  - 기본적으로 DMA/TE/VE opcode를 재사용하되, `tensor_role="kv"` 또는 확장 opcode로 구분.
+  - 기본적으로 DMA/TE/VE opcode를 재사용하되, 필요한 경우 별도 opcode(`KV_STORE_TILE`, `KV_LOAD_TILE`)를 사용한다.
 
 ## 3. 공통 메타 필드
 모든 CMDQ 엔트리는 다음 공통 필드 집합을 공유한다 (`cmdq_format_spec.md` 참고).
@@ -81,6 +81,9 @@ CMDQ 기반 ISA에서 사용되는 **opcode 전체 집합과 카테고리**를 �
 ### 5.2 (향후) TE_CONV_TILE, TE_SPARSE_GEMM_TILE
 - Conv, sparse GEMM 등은 별도 opcode로 확장하되,  
   기존 GEMM opcode의 의미는 변경하지 않는다.
+- **Attention 전용 TE opcode**  
+  - 필요 시 `TE_QKT_TILE`(Q × Kᵀ), `TE_AV_TILE`(Attention weighted value) 등으로 명명한다.  
+  - 필드 구조는 `TE_GEMM_TILE`과 동일하며, `tensor_role`(q/k/v) 정도만 달라진다.
 
 ## 6. Vector Engine(VE) Class Opcode
 
@@ -115,13 +118,35 @@ CMDQ 기반 ISA에서 사용되는 **opcode 전체 집합과 카테고리**를 �
 
 ## 8. LLM Extension Class Opcode
 
-### 8.1 KV Cache 관련
-- 별도 opcode를 추가하기보다, DMA opcode에서  
-  `tensor_role="kv"`와 `qbits_kv`를 사용해 표현하는 것을 기본 원칙으로 한다.
+### 8.1 KV_STORE_TILE (0x30)
+- **목적:** SPM에 있는 K/V 타일을 DRAM의 KV cache에 append/write-back. Prefill/Decode 공통 사용.
+- **Engine:** DMAEngine (`kv_store` 채널로 구분 가능).
+- **주요 필드(추가):**
+  - `head_id` (필수): multi-head 구분.
+  - `kv_kind` (필수): `k` 또는 `v`.
+  - `spm_bank`, `spm_offset` (필수): 소스 타일 위치.
+  - `dram_base_addr` (필수): KV cache 베이스 주소.
+  - `t_start`, `t_len` (필수): 토큰 시퀀스 범위.
+  - `d_start`, `d_len` (선택): head dimension 범위(partial KV slice가 필요한 경우).
+  - `qbits_kv` (필수): KV bitwidth.
+  - (선택) `kv_layout_id`: 레이아웃/stride 프로파일 ID.
 
-### 8.2 Attention 특화 연산
+### 8.2 KV_LOAD_TILE (0x31)
+- **목적:** DRAM의 KV cache에서 특정 범위(K/V)를 SPM으로 fetch. 주로 Decode 단계에서 사용.
+- **Engine:** DMAEngine (`kv_load` 채널로 구분 가능).
+- **주요 필드(추가):**
+  - `head_id` (필수): multi-head 구분.
+  - `kv_kind` (필수): `k` 또는 `v`.
+  - `spm_bank`, `spm_offset` (필수): 목적지 타일 위치.
+  - `kv_range_desc` (필수): KV fetch 범위 서술자 포인터 또는 인라인 구조.
+    - `t_start`, `t_len`: 토큰 시퀀스 범위.
+    - `d_start`, `d_len`: head dimension 범위.
+  - `qbits_kv` (필수): KV bitwidth.
+  - (선택) `kv_layout_id`: 레이아웃/stride 프로파일 ID.
+
+### 8.3 기타 LLM 연산
 - Q/K/V projection, attention score, rotary embedding 등은  
-  TE/VE opcode를 재사용하거나, 필요 시 `ATTN_*` prefix opcode로 확장한다.
+  TE/VE opcode를 재사용하되 `tensor_role`/`op_mode`로 구분하거나, 필요 시 `ATTN_*` prefix opcode로 확장한다.
 
 ## 9. 확장/변경 정책
 1. **기존 opcode 의미 변경 금지**  
@@ -138,3 +163,4 @@ CMDQ 기반 ISA에서 사용되는 **opcode 전체 집합과 카테고리**를 �
 - `cmdq_overview.md`  
 - `cmdq_format_spec.md`  
 - `npu_ir_spec.md`  
+- `docs/references/p2_riscv_npu/xNPU_ISA_v1_kv_extension_full.md`

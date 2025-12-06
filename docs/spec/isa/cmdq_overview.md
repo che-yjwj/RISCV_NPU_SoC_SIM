@@ -6,7 +6,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** ISA Architect  
-**Last Updated:** YYYY-MM-DD  
+**Last Updated:** 2025-12-04  
 
 ---
 
@@ -397,6 +397,82 @@ CMDQ는 “spec-driven 확장”을 원칙으로 한다.
 새 양자화 방식, int2/int1 등 도입 시 qbits 확장 가능
 
 sparsity engine이 도입되면 SPARSE_TILE opcode 추가
+
+---
+
+# 15. 정적 워크로드 스펙 (Prefill/Decode Manifest)
+정적 CMDQ 실행 모델에서는 **워크로드 입력(JSON)**으로 Prefill/Decode 단계의 범위를 고정한 뒤, Offline Compiler가 각 단계를 독립적인 CMDQ 세그먼트로 생성한다. 전체 스키마는 `docs/references/p1_llm_specific_arch/design_llm_static_workload_spec.md`에 정의되어 있으며, 본 절에서는 CMDQ 관점에서 필요한 핵심 필드를 요약한다.
+
+## 15.1 Manifest 기본 구조
+
+```json
+{
+  "model": { ... },
+  "prefill": { ... },
+  "decode": { ... },
+  "memory": { ... },
+  "constraints": { ... }
+}
+```
+
+| 섹션 | 핵심 필드 | CMDQ와의 연계 |
+| --- | --- | --- |
+| `model` | `num_layers`, `hidden_dim`, `num_heads`, `head_dim`, `ffn_dim`, `weight_precision`, `activation_precision`, `kv_precision` | TE/VE tile shape와 `qbits_*` 기본값 결정 |
+| `prefill` | `max_seq_len`, `attention.mode`, `kv_cache_write`, `required_layers` | Prefill CMDQ segment에 포함될 Layer/Tile 범위 지정 |
+| `decode` | `max_new_tokens`, `kv_read_stride_bytes`, `decode_graph`, `loop_mode` | Decode CMDQ segment의 반복 구조와 KV load 범위를 고정 |
+| `memory` | `sram_size_kb`, `sram_banks`, `kv_cache_layout`, `dram_bandwidth_gbps` | SPMAllocator/Bus 모델 파라미터 → CMDQ 필드(`spm_bank`, `kv_layout_id`) |
+| `constraints` | `latency_target_ms`, `prefill_tile_policy`, `decode_tile_policy`, `thermal_budget_mw` | StaticScheduler/CmdqGenerator가 선택할 tile ordering/loop unroll 정책을 고정 |
+
+## 15.2 Prefill vs Decode CMDQ 세그먼트
+
+| Phase | CMDQ 구조 | 설명 |
+| --- | --- | --- |
+| Prefill | `[Prefill Header] → Prefill CMDQ entries → MARKER_EVENT("PREFILL_DONE")` | 전체 입력 문맥을 한 번에 처리하며 KV cache를 생성. `kv_cache_write = true` 시 `KV_STORE_TILE` 포함. |
+| Decode | `[Decode Header] → (Decode CMDQ body) × max_new_tokens → MARKER_EVENT("DECODE_DONE")` | 토큰 단위 반복. `kv_range_desc`가 manifest의 `kv_read_stride_bytes`, `max_new_tokens`를 기반으로 생성. |
+
+CmdqGenerator는 manifest에서 전달된 phase 정보를 `cmdq_entry.details.phase` 또는 ControlFSM metadata에 기록해 Prefill/Decode 경계를 식별할 수 있도록 한다.
+
+## 15.3 예시 스니펫
+
+```json
+{
+  "model": {
+    "num_layers": 32,
+    "hidden_dim": 4096,
+    "head_dim": 128,
+    "num_heads": 32,
+    "ffn_dim": 11008,
+    "weight_precision": "int4",
+    "activation_precision": "int8",
+    "kv_precision": "int4"
+  },
+  "prefill": {
+    "max_seq_len": 4096,
+    "attention": { "mode": "full" },
+    "kv_cache_write": true
+  },
+  "decode": {
+    "max_new_tokens": 128,
+    "kv_read_stride_bytes": 65536,
+    "decode_graph": "static_token_step",
+    "loop_mode": "fixed"
+  }
+}
+```
+
+해당 manifest를 기반으로 Offline Compiler는:
+1. Prefill Phase → CMDQ segment A (Prefill)  
+2. Decode Phase → CMDQ segment B (loop body) + loop metadata  
+
+를 생성하며, ControlFSM/TraceEngine은 phase 정보를 활용해 Prefill/Decode timeline을 명확히 표시한다.
+
+## 15.4 구현 지침
+- **Offline Compiler**: manifest를 입력으로 받아 phase별 TileGraph/Schedule/CMDQ를 생성하고, Prefill/Decode 헤더/마커 엔트리를 자동으로 추가한다.  
+- **CMDQ 포맷**: `cmdq_format_spec.md`의 `phase` 필드나 `details.phase`를 사용해 Prefill/Decode를 명시하고, 필요 시 `loop_info` 블록으로 Decode 반복 횟수를 기록한다.  
+- **Simulator/Trace**: `phase` / `token_index` 메타데이터를 이용해 Prefill completion, decode token latency 등을 빠르게 계산할 수 있다.  
+- **문서 연계**: 자세한 스펙/예시는 `design_llm_static_workload_spec.md`, `design_llm_prefill_decode_static.md`, `design_static_tile_scheduler.md`를 참고한다.
+
+이 섹션을 따라 정적 워크로드를 정의하면, Offline Compiler ↔ CMDQ ↔ Simulator 간의 phase/loop 인식이 일관되게 유지된다.
 
 new memory ops (gather/scatter) 확장 가능
 

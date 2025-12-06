@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-03
+**Last Updated:** 2025-12-04
 
 ---
 
@@ -27,7 +27,7 @@ NPU Simulator Core는 CMDQ를 입력으로 받아 **cycle 기반으로 DMA/TE/VE
 - **주요 역할**
   - Control FSM + CMDQExecutor를 통해 CMDQ fetch/deps/issue 제어.
   - DMA/TE/VE/MemoryModel/TraceEngine 인스턴스 생성·수명 관리.
-  - Global cycle loop를 돌며 모든 엔진/버스/메모리/trace를 동기화.
+  - Global cycle loop를 돌며 멀티클럭 tick 규칙(period/local_phase)을 적용해 모든 엔진/버스/메모리/trace를 동기화.
 - **하지 말아야 할 일**
   - CMDQ/IR 생성(컴파일러 영역).
   - 타이밍 모델 공식 변경(이는 timing spec 및 엔진 설계 문서에서 정의).
@@ -45,9 +45,16 @@ NPU Simulator Core는 CMDQ를 입력으로 받아 **cycle 기반으로 DMA/TE/VE
 - `TraceEngine`
   - `trace_format_spec.md`에 맞는 timeline_events, bandwidth_samples, summary_metrics 생성.
 - `GlobalCycleLoop`
-  - 전체 시스템을 하나의 cycle 타임스텝으로 업데이트.
+  - 전체 시스템을 하나의 cycle 타임스텝으로 업데이트하며, Tickable 기반 멀티클럭 스케줄러를 포함.
 
-### 3.2 주요 데이터 구조
+### 3.2 Tick Scheduler / Multi-clock 구성
+- `Tickable` 인터페이스(`period`, `local_phase`, `_tick_local`)를 구현하는 모듈 목록을 유지한다.
+- `tickables_in_order` 기본 순서: `ControlFSM/CPU → DMAEngine Cluster → TensorEngine Cluster → VectorEngine Cluster → Memory/Bus Model → TraceEngine`.
+- `SimulatorConfig.clock_profile`에서 각 모듈의 period를 지정:
+  - `cpu_period`, `dma_period`, `te_period`, `ve_period`, `mem_period`, `trace_period`.
+- CycleLoop는 global cycle마다 위 순서대로 `tick()`을 호출하여 서로 다른 클럭 도메인을 단일 루프에서 통합한다.
+
+### 3.3 주요 데이터 구조
 - `SimulatorConfig`
   - `n_te`, `n_ve`, `n_dma`, DRAM/NoC/SPM 파라미터, quantization/timing 모델 선택.
 - `SimulatorState`
@@ -55,7 +62,7 @@ NPU Simulator Core는 CMDQ를 입력으로 받아 **cycle 기반으로 DMA/TE/VE
 - `EngineEventQueue`
   - 엔진 completion 이벤트를 ControlFSM/CMDQExecutor에 전달.
 
-### 3.3 상위 플로우 다이어그램 (텍스트)
+### 3.4 상위 플로우 다이어그램 (텍스트)
 
 ```text
           CMDQ(JSON) + Config
@@ -102,11 +109,9 @@ Cycle loop의 세부 책임은 `cycle_loop_design.md`에서 정의하며,
 ```pseudo
 cycle = 0
 while not control_fsm.is_finished() and cycle < max_cycles:
-    # 1) 엔진/메모리 상태 업데이트
-    dma_engines.step_all(cycle, memory_model, trace_engine)
-    tensor_engines.step_all(cycle, memory_model, trace_engine)
-    vector_engines.step_all(cycle, memory_model, trace_engine)
-    memory_model.step(cycle, trace_engine)
+    # 1) Tick scheduler
+    for tickable in tickables_in_order:
+        tickable.tick(cycle)
 
     # 2) 완료 이벤트 수집 및 FSM에 전달
     engine_event_queue = collect_engine_events()

@@ -43,7 +43,6 @@ docs/
 ├── overview/
 │   ├── system_architecture_overview.md
 │   ├── system_architecture.md
-│   ├── compute_dataflow_overview.md
 │   ├── dataflow_overview.md
 │   ├── memory_noc_overview.md
 │   ├── module_responsibilities.md
@@ -95,6 +94,9 @@ docs/
 │   └── visualizer_design.md
 │
 ├── process/
+│   ├── archive/
+│   │   ├── review_by_chatgpt_v1.md
+│   │   └── review_by_chatgpt_v2.md
 │   ├── spec_driven_development_workflow.md
 │   ├── contribution_and_review_guide.md
 │   ├── naming_convention.md
@@ -119,7 +121,6 @@ NPU 시스템의 큰 그림, 데이터 흐름, 책임 분할 문서들
 
 - **system_architecture_overview.md** *(필수)* — 전체 아키텍처를 한 페이지에서 빠르게 파악하기 위한 요약본
 - **system_architecture.md** *(필수)* — 전체 NPU + 컴파일러 + 시뮬레이터 아키텍처 상세 정의
-- **compute_dataflow_overview.md** *(권장)* — ONNX → IR → TileGraph → Schedule → CMDQ → TE/VE 실행까지의 compute path 개요
 - **dataflow_overview.md** *(권장)* — ONNX → IR → TileGraph → CMDQ → Simulator → Trace 전체 데이터 플로우 설명
 - **memory_noc_overview.md** *(권장)* — DRAM/Bus/NoC/SPM 및 DMA 관점의 메모리/네트워크 구조 요약
 - **module_responsibilities.md** *(권장)* — 각 모듈의 입력/출력 및 책임(SRP 기반)
@@ -286,8 +287,8 @@ Spec 문서의 “설명된 내용을 실제로 어떻게 구현할지” 정의
 Codex 기반 Vibe Coding 또는 문서 개선 작업을 할 때는, 다음 세 문서를 함께 사용하는 것을 권장한다.
 
 - 리뷰 스냅샷:  
-  - `docs/process/review_by_chatgpt_v1.md`  
-  - `docs/process/review_by_chatgpt_v2.md`
+  - `docs/process/archive/review_by_chatgpt_v1.md` (archive)  
+  - `docs/process/archive/review_by_chatgpt_v2.md` (archive)
 - 리뷰 요약/기준선:  
   - `docs/process/documentation_review_summary.md`
 - 실행 가능한 체크리스트:  
