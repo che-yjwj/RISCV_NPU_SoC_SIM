@@ -8,7 +8,7 @@
 본 문서는 `RISCV_NPU_SoC_SIM` 레포지토리의 문서 구조를 기반으로,  
 `docs/references/`를 제외한 주요 문서들에 대한 리뷰 내용을 요약한 참조용 문서이다.  
 각 섹션은 **역할 요약 → 강점 → 개선 제안** 순으로 구성되어 있으며,  
-이하의 본문은 `review_by_chatgpt_v1.md`(기존 `review_by_chatgpt.md`) 최초 버전에서 작성된 내용을 그대로 보존한다.  
+이하의 본문은 `archive/review_by_chatgpt_v1.md`(기존 `review_by_chatgpt.md`) 최초 버전에서 작성된 내용을 그대로 보존한다.  
 실제 개선 작업과 진행 상황은 `docs/process/doc_improvement_tasks.md`에서 추적한다.
 
 # RISCV_NPU_SoC_SIM 문서 리뷰 요약
@@ -65,7 +65,7 @@
 **개선 제안 (v1+v2 통합)**  
 - RISC-V SoC 관점(CPU/AXI/인터럽트/메모리 계층)에서의 연결을 블록 다이어그램(텍스트 기반이라도)으로 명시해 SoC 독자도 이해하기 쉽게 할 것.  
 - 대표 예시(예: 단일 MatMul+GELU 또는 LLaMA block)를 기준으로 ONNX → IR → TileGraph → CMDQ → Trace까지 한 줄씩 이어지는 end-to-end 예제를 추가할 것.  
-- v2 리뷰에서 제안된 신규/보완 문서(예: `system_architecture_overview.md`, `compute_dataflow_overview.md`, `memory_noc_overview.md`, `sdd_devflow_overview.md`)를 실제 구조에 맞게 설계·추가해, overview 계층만 읽어도 전체 그림과 개발 플로우를 파악할 수 있게 할 것.
+ - v2 리뷰에서 제안된 신규/보완 문서(예: `system_architecture_overview.md`, `dataflow_overview.md`(compute 개요 포함), `memory_noc_overview.md`, `sdd_devflow_overview.md`)를 실제 구조에 맞게 설계·추가해, overview 계층만 읽어도 전체 그림과 개발 플로우를 파악할 수 있게 할 것.  
 
 ---
 

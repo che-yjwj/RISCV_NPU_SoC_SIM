@@ -53,8 +53,8 @@
 다음 세 문서를 중심으로 관리한다.
 
 1. **리뷰 스냅샷**  
-   - `docs/process/review_by_chatgpt_v1.md`  
-   - `docs/process/review_by_chatgpt_v2.md`  
+   - `docs/process/archive/review_by_chatgpt_v1.md` (archive)  
+   - `docs/process/archive/review_by_chatgpt_v2.md` (archive)  
    → 전체 문서에 대한 AI 기반 리뷰 결과(그대로 보존).
 
 2. **요약/기준선**  
@@ -118,4 +118,3 @@ Codex/Vibe Coding 세션 예시는
 문서 중심 Devflow를 통해,  
 **“코드가 스펙에서 벗어나지 않도록”** 하고,  
 장기적으로도 아키텍처/문서/코드가 함께 진화할 수 있는 구조를 유지한다.
-

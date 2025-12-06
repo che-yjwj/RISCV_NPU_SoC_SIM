@@ -4,7 +4,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02  
+**Last Updated:** 2025-12-04  
 
 ---
 
@@ -31,7 +31,8 @@ Simulator와 Viewer/Profiler가 공통으로 준수해야 하는 단일 포맷�
 # 2. 전체 구조 개요 (Top-Level Structure)
 
 Trace 파일은 **JSON** 기반을 기본으로 한다.  
-(추후 binary/columnar 포맷으로의 변환은 이 스펙의 파생물로 간주)
+(추후 binary/columnar 포맷으로의 변환은 이 스펙의 파생물로 간주)  
+필요 시 JSON Lines(`.jsonl`) 형태로도 저장할 수 있으며, 이벤트 스키마는 동일하다.
 
 Top-level 구조:
 
@@ -91,31 +92,17 @@ Viewer/Profiler는 version을 확인하여 호환성 체크를 수행해야 한�
 }
 ```
 필드 정의
-run_id (string)
 
-trace를 유일하게 식별하는 ID
-
-timestamp (string, ISO 8601)
-
-model_name (string)
-
-workload_type (string)
-
-예: "LLM_PREFILL", "LLM_DECODE", "VISION_CLS", "CUSTOM"
-
-tokens (object, optional)
-
-LLM workload일 때 prefill/decode token 수
-
-cmdq_file (string)
-
-이 run에서 사용한 CMDQ 파일 경로
-
-ir_snapshot_file (string, optional)
-
-IR snapshot 파일 경로
-
-notes (string, optional)
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `run_id` | string | trace를 유일하게 식별하는 ID |
+| `timestamp` | string | ISO 8601 형식 타임스탬프 |
+| `model_name` | string | 실행 모델 이름 |
+| `workload_type` | string | `"LLM_PREFILL"`, `"LLM_DECODE"`, `"VISION_CLS"`, `"CUSTOM"` 등 |
+| `tokens` | object (optional) | LLM workload일 때 prefill/decode token 수 |
+| `cmdq_file` | string | 이 run에서 사용한 CMDQ 파일 경로 |
+| `ir_snapshot_file` | string (optional) | IR snapshot 파일 경로 |
+| `notes` | string (optional) | 자유 텍스트 메모 |
 
 # 5. config_snapshot
 시뮬레이터 구성 상태를 snapshot으로 기록.
@@ -152,17 +139,37 @@ notes (string, optional)
 # 6. timeline_events
 시뮬레이터에서 발생하는 주요 이벤트를 시간축(cycle) 기준으로 기록한 리스트.
 
-타입은 크게 네 가지:
+- 각 레코드는 `type` 필드로 이벤트 종류를 명시한다.
+- 공통 필드 세트(6.1)를 공유하고, 타입별로 추가 필드를 정의한다.
+- `docs/references/p3_xNPU_ISA/profiler_trace_format_spec_v_1.md`에서 소개된  
+  CMD/DMA/TE/VE/STALL 이벤트를 본 스키마에 통합하였다.
 
-ENGINE_EVENT: DMA / TE / VE / HOST / 기타 엔진의 작업 단위
+지원 타입:
+- `ENGINE_EVENT`: DMA / TE / VE / HOST / 기타 엔진의 작업 단위
+- `MEM_ACCESS_EVENT`: DRAM / SPM access 단위
+- `TOKEN_EVENT`: LLM token 경계 정보
+- `MARKER_EVENT`: 사용자 정의 마커 / 구간 태그
+- `CMD_EVENT`: CMDQ 명령 enqueue/start/end 등 제어 흐름
+- `STALL_EVENT`: Bus/NoC/엔진 stall 시작/종료
 
-MEM_ACCESS_EVENT: DRAM / SPM access 단위
+## 6.1 공통 필드 (Common Fields)
 
-TOKEN_EVENT: LLM token 경계 정보
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `type` | string | 이벤트 타입 (`ENGINE_EVENT`, `CMD_EVENT`, …) |
+| `cycle` | int | 이벤트가 기록된 기준 cycle (또는 `start_cycle`) |
+| `sim_id` | string (optional) | run id (run_metadata.run_id 기본값) |
+| `cmd_id` | int (optional) | CMDQ entry id 또는 CMD ID |
+| `cmdq_id` | int (optional) | CMDQ 배열 인덱스, `cmd_id`와 동일할 수 있음 |
+| `layer_id` | string (optional) | 연관 LayerIR id |
+| `tile_id` | string (optional) | 연관 tile id |
+| `phase` | string (optional) | Prefill/Decode/Custom phase |
+| `token_index` | int (optional) | decode token index |
+| `details` | object | 타입별 확장 필드 (필수/옵션 혼합) |
 
-MARKER_EVENT: 사용자 정의 마커 / 구간 태그
+각 타입별 섹션에서는 `cycle` 대신 `start_cycle`+`end_cycle` 등 추가 필드를 정의한다.
 
-# 6.1 ENGINE_EVENT
+## 6.2 ENGINE_EVENT
 엔진(DMA/TE/VE/Host 등)의 “작업 하나”를 나타내는 레코드.
 
 예시:
@@ -190,16 +197,20 @@ MARKER_EVENT: 사용자 정의 마커 / 구간 태그
 ```
 공통 필드
 필드	타입	설명
-type	string	"ENGINE_EVENT"
-engine	string	"DMA", "TE", "VE", "HOST", "OTHER"
-engine_id	int	해당 엔진 index (0..N-1)
-cmdq_id	int	이 이벤트를 발생시킨 CMDQ entry index
-layer_id	string	관련 LayerIR id (없으면 null)
-tile_id	string	관련 tile id (없으면 null)
-op	string	opcode 또는 논리 연산 이름
-start_cycle	int	inclusive 시작 cycle
-end_cycle	int	exclusive 또는 inclusive (프로젝트에서 하나로 고정)
-details	object	엔진별 추가 정보
+필드 정의
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `type` | string | `"ENGINE_EVENT"` |
+| `engine` | string | `"DMA"`, `"TE"`, `"VE"`, `"HOST"`, `"OTHER"` |
+| `engine_id` | int | 해당 엔진 index (0..N-1) |
+| `cmdq_id` | int | 이벤트를 발생시킨 CMDQ entry index |
+| `layer_id` | string | 관련 LayerIR id (없으면 null) |
+| `tile_id` | string | 관련 tile id (없으면 null) |
+| `op` | string | opcode 또는 논리 연산 이름 |
+| `start_cycle` | int | inclusive 시작 cycle |
+| `end_cycle` | int | exclusive 또는 inclusive (프로젝트 내 규칙에 맞춰 고정) |
+| `details` | object | 엔진별 추가 정보 |
 
 DMA 예시
 
@@ -246,7 +257,7 @@ VE 예시
   }
 }
 ```
-# 6.2 MEM_ACCESS_EVENT
+## 6.3 MEM_ACCESS_EVENT
 보다 세밀한 DRAM/SPM access 수준의 기록이 필요할 때 사용.
 
 예시:
@@ -265,21 +276,23 @@ VE 예시
 }
 ```
 필드 정의
-필드	타입	설명
-type	string	"MEM_ACCESS_EVENT"
-mem_type	string	"DRAM", "SPM"
-cycle	int	access가 일어난 cycle
-direction	string	"read", "write"
-bytes	int	access bytes
-addr	int	DRAM/ SPN address
-source_engine	string	요청을 발생시킨 엔진
-source_engine_id	int	엔진 index
-cmdq_id	int	연관된 CMDQ entry id
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `type` | string | `"MEM_ACCESS_EVENT"` |
+| `mem_type` | string | `"DRAM"`, `"SPM"` |
+| `cycle` | int | access가 일어난 cycle |
+| `direction` | string | `"read"`, `"write"` |
+| `bytes` | int | access bytes |
+| `addr` | int | DRAM/SPM address |
+| `source_engine` | string | 요청을 발생시킨 엔진 |
+| `source_engine_id` | int | 엔진 index |
+| `cmdq_id` | int | 연관된 CMDQ entry id |
 
 초기 버전에서는 DRAM만 기록하고,
 SPM은 옵션으로 둘 수 있다.
 
-# 6.3 TOKEN_EVENT (LLM 전용)
+## 6.4 TOKEN_EVENT (LLM 전용)
 LLM 시뮬레이션에서 토큰 경계를 명확히 표현하기 위한 이벤트.
 
 예시:
@@ -298,13 +311,15 @@ LLM 시뮬레이션에서 토큰 경계를 명확히 표현하기 위한 이벤�
 }
 ```
 필드 정의
-필드	타입	설명
-type	string	"TOKEN_EVENT"
-phase	string	"PREFILL", "DECODE"
-token_index	int	decode phase에서의 token index
-start_cycle	int	token 처리 시작 cycle
-end_cycle	int	token 처리 완료 cycle
-details	object	추가 메타데이터
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `type` | string | `"TOKEN_EVENT"` |
+| `phase` | string | `"PREFILL"`, `"DECODE"` |
+| `token_index` | int | decode phase에서의 token index |
+| `start_cycle` | int | token 처리 시작 cycle |
+| `end_cycle` | int | token 처리 완료 cycle |
+| `details` | object | 추가 메타데이터 (generated_token_id 등) |
 
 Viewer는 TOKEN_EVENT를 이용해:
 
@@ -314,7 +329,7 @@ prefill / decode 구간 분리
 
 KV Cache traffic per token 등 분석을 수행할 수 있다.
 
-# 6.4 MARKER_EVENT
+## 6.5 MARKER_EVENT
 사용자 또는 시뮬레이터가 임의로 삽입하는 마커 이벤트.
 
 예시:
@@ -330,6 +345,71 @@ KV Cache traffic per token 등 분석을 수행할 수 있다.
 }
 ```
 
+# 6.6 CMD_EVENT (Command lifecycle)
+CMDQ 또는 ISA command의 enqueue/start/end/error 시점 기록.  
+`profiler_trace_format_spec_v_1`의 `CMD_ENQUEUE/CMD_START/CMD_END`를 통합하였다.
+
+예시:
+
+```json
+{
+  "type": "CMD_EVENT",
+  "cycle": 9500,
+  "cmd_id": 42,
+  "cmdq_id": 42,
+  "event": "ENQUEUE",          // ENQUEUE / START / END / ERROR
+  "source": "CMDQ_EXECUTOR",
+  "phase": "QKV_PROJ",
+  "details": {
+    "status": "OK",
+    "desc_addr": 140737488355328
+  }
+}
+```
+
+필드 정의
+
+| 필드 | 설명 |
+| --- | --- |
+| `event` | `"ENQUEUE"`, `"START"`, `"END"`, `"ERROR"` 등 |
+| `source` | `CMDQ_EXECUTOR`, `HOST`, `MICRO_SCHEDULER` 등 |
+| `details.status` | `"OK"`, `"TIMEOUT"`, `"ABORT"` 등 오류 정보 |
+| 기타 phase/token 메타데이터는 공통 필드 참조 |
+
+## 6.7 STALL_EVENT (Bus/NoC/Engine Stall)
+Bus/NoC 큐 포화, priority preemption, backpressure 등으로 인해 Stall이 발생했을 때 기록한다.  
+DMAEngine/BusModel이 `bus_and_noc_model.md`의 queue/stall 정책을 적용하며 Trace로 전달한다.
+
+예시:
+
+```json
+{
+  "type": "STALL_EVENT",
+  "master": "DMA",
+  "master_id": 0,
+  "reason": "queue_full",      // queue_full / priority_deferred / backpressure
+  "start_cycle": 8050,
+  "end_cycle": 8090,
+  "details": {
+    "channel": "kv_load",
+    "bytes_pending": 4096,
+    "head_id": 3
+  }
+}
+```
+
+필드 정의
+
+| 필드 | 설명 |
+| --- | --- |
+| `master` | `"DMA"`, `"TE"`, `"VE"`, `"BUS"`, `"TRACE"` 등 Stall 주체 |
+| `master_id` | master index |
+| `reason` | `queue_full`, `priority_deferred`, `backpressure`, `throttle` 등 |
+| `start_cycle`, `end_cycle` | Stall 지속 구간 |
+| `details.channel/head_id/token_index` 등 추가 메타데이터 |
+
+Viewer/Profiler는 이 정보를 사용해 Stall heatmap, contention breakdown, QoS 통계를 제공할 수 있다.
+
 # 7. bandwidth_samples
 주기적으로 샘플링된 DRAM bandwidth, SPM bank usage 등을 기록하는 배열.
 
@@ -341,7 +421,8 @@ KV Cache traffic per token 등 분석을 수행할 수 있다.
     "cycle": 8000,
     "window_cycles": 64,
     "dram_read_bytes": 4096,
-    "dram_write_bytes": 1024
+    "dram_write_bytes": 1024,
+    "stall_cycles": 8
   },
   {
     "cycle": 8064,
@@ -352,11 +433,14 @@ KV Cache traffic per token 등 분석을 수행할 수 있다.
 ]
 ```
 필드 정의
-필드	타입	설명
-cycle	int	샘플링 윈도우 시작 cycle
-window_cycles	int	샘플 길이 (cycle 수)
-dram_read_bytes	int	윈도우 동안 DRAM read bytes 합
-dram_write_bytes	int	DRAM write bytes 합
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `cycle` | int | 샘플링 윈도우 시작 cycle |
+| `window_cycles` | int | 샘플 길이 (cycle 수) |
+| `dram_read_bytes` | int | 윈도우 동안 DRAM read bytes 합 |
+| `dram_write_bytes` | int | DRAM write bytes 합 |
+| `stall_cycles` | int (optional) | 동일 윈도우 동안 Stall에 소비된 cycle 수 (DMA/BUS 관점) |
 
 이 정보로부터:
 
@@ -506,81 +590,54 @@ Trace/Visualizer 관련 기본 워크플로우는 다음 세 단계로 요약된
 ```
 
 # 10. 설계 철학
-Trace 포맷은 다음 철학을 따른다.
+Trace 포맷은 다음 원칙을 따른다.
 
-Human-readable 우선 → JSON
-
-디버깅 / 연구 단계에서 쉽게 읽고 수정 가능
-
-나중에 binary 변환은 별도 레이어로 처리
-
-Viewer-agnostic
-
-특정 UI/도구에 종속되지 않는 중립 스키마
-
-Python, JS, Rust 등 어디에서나 쉽게 파싱 가능
-
-Spec-driven 확장
-
-새로운 이벤트 타입 추가 시  
-type 필드에 새 문자열 추가  
-기존 필드에는 영향을 주지 않음
-
-분리된 책임  
-Simulator: trace 파일 생성  
-Viewer/Profiler: trace 파일 소비 및 시각화/분석  
-포맷 스펙: 양쪽 사이의 계약(Contract)
+1. **Human-readable 우선**  
+   - JSON/JSONL 기반으로 디버깅·연구 단계에서 바로 읽고 수정 가능.  
+   - Binary/columnar 포맷은 후속 변환 레이어로 처리.
+2. **Viewer-agnostic**  
+   - 특정 UI/도구에 종속되지 않는 중립 스키마.  
+   - Python/JS/Rust 등 어디에서나 쉽게 파싱 가능.
+3. **Spec-driven 확장**  
+   - 새로운 이벤트 타입 추가 시 `type`에 문자열을 추가하고 `details`로 확장한다.  
+   - 기존 필드/타입에는 영향을 주지 않으므로 하위 호환 유지.
+4. **분리된 책임**  
+   - Simulator: Trace 파일 생성.  
+   - Viewer/Profiler: Trace 파일 소비 및 시각화/분석.  
+   - Trace Spec: 양쪽 사이의 계약(Contract).
 
 # 11. Validation 규칙
-Trace 파일 로더는 다음을 검증해야 한다.
+Trace 파일 로더/뷰어는 최소한 다음을 검증해야 한다.
 
-version 존재 및 지원 버전인지 확인
+- `version` 필드 존재 여부 및 지원 버전인지 확인.
+- `timeline_events`가 배열이며 각 요소가 `type`을 포함하는지.
+- `ENGINE_EVENT`의 경우 `start_cycle <= end_cycle`.
+- 모든 cycle 값이 음수가 아닌지(`cycle`, `start_cycle`, `end_cycle` 등).
+- enum 필드(`engine`, `mem_type`, `phase`, `reason` 등)가 허용 값인지.
+- `summary_metrics.cycles_total`가 `timeline_events` 내 최대 `end_cycle` 이상인지(선택적 일관성 체크).
 
-timeline_events가 배열인지, 각 요소가 최소한 type 필드를 포함하는지
+검증 실패 시:
+- Viewer/Profiler는 경고 또는 오류를 명시적으로 출력해야 한다.
+- Simulator는 가능하다면 Trace에 `"INVALID_TRACE"` 마커를 남기고 종료하도록 한다.
 
-ENGINE_EVENT의 경우 start_cycle <= end_cycle
+# 12. 확장성 (Extensibility)
+추가 이벤트 예시:
+- `BUS_EVENT`: NoC/interconnect traffic 상세 기록.
+- `POWER_ESTIMATE`: cycle window별 power/energy 추정 값.
+- `ERROR_EVENT`: 시뮬레이션 중 발생한 내부 오류.
 
-cycle 값이 음수가 아닌지
+확장 규칙:
+1. `type` 필드에 새 문자열을 정의(예: `"POWER_ESTIMATE"`).
+2. 추가 필드는 optional로 설계해 기존 파서가 무시할 수 있도록 한다.
+3. `details` 블록을 활용해 구조화된 데이터를 유지한다.
 
-engine, mem_type, phase 등의 enum 필드가 허용 값인지
+# 13. 결론 (Summary)
+이 스펙은 NPU Simulator Trace의 단일 표준 포맷을 정의한다.
 
-summary_metrics.cycles_total가 최소한 timeline_events의 최대 end_cycle 이상인지 (optional consistency check)
+- `run_metadata` / `config_snapshot` → 실험 조건 재현.
+- `timeline_events` → Gantt/Utilization/Token-level latency 분석.
+- `bandwidth_samples` → DRAM bandwidth heatmap과 Stall 분석.
+- `summary_metrics` → 실험 간 빠른 비교/검색.
 
-잘못된 경우:
-
-Viewer는 warning 또는 error를 출력해야 한다.
-
-Simulator는 가능하면 Trace에 “INVALID_TRACE” 마커를 남기고 종료하는 방식 권장.
-
-12. 확장성 (Extensibility)
-향후 다음과 같은 확장이 가능하다.
-
-STALL_EVENT: 특정 이유(예: SPM bank conflict, DRAM queue full)로 엔진이 stall된 구간
-
-BUS_EVENT: NoC / interconnect 레벨의 traffic
-
-POWER_ESTIMATE: cycle window별 power/energy 추정 값
-
-ERROR_EVENT: 시뮬레이션 중 발생한 내부 오류
-
-새 이벤트 타입 추가 시 규칙:
-
-type 필드를 새로운 문자열로 정의 (예: "STALL_EVENT")
-
-추가 필드는 optional로 설계
-
-기존 파서가 새 타입을 무시하더라도 문제 없도록 해야 함
-
-13. 결론 (Summary)
-trace_format_spec.md는 NPU Simulator의 결과를 기록하는 단일 Trace 포맷 스펙이다.
-
-run_metadata / config_snapshot → 실험 조건 재현
-
-timeline_events → Gantt / utilization / token-level latency 분석
-
-bandwidth_samples → DRAM bandwidth heatmap
-
-summary_metrics → 실험 간 빠른 비교
-
-이 스펙을 기준으로 Simulator와 Viewer를 구현하면,
-LLM/NPU 아키텍처 실험에서 정량적인 병목 분석과 시각화가 가능해진다
+본 스펙을 기준으로 Simulator와 Viewer를 구현하면,  
+LLM/NPU 아키텍처 실험에서 정량적 병목 분석과 시각화를 일관되게 수행할 수 있다.

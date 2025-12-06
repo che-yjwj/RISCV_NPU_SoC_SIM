@@ -3,7 +3,7 @@
 **Status:** Stable Draft  
 <!-- status: complete -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-04
 
 ---
 
@@ -121,3 +121,46 @@ def compile(onnx_path: str, hw_config: HwConfig, qconfig: QConfig) -> CmdqArtifa
 - MLIR backend 연동.
 - auto-tuning 기반 tile/schedule search.
 - profile-guided compilation (이전 trace를 사용해 스케줄 개선).
+
+## 8. 부록 A — Lowering 규칙 레퍼런스
+Offline Compiler는 `CmdqGenerator` 단계에서 IR/TileGraph 노드를 CMDQ/ISA stream으로 변환할 때 **일관된 로워링 규칙**을 따라야 한다.  
+규칙의 풀 버전은 아래 참고 문서에 정리되어 있으며, 이 문서는 핵심 요약본을 제공한다.
+
+- 주요 참고 문서  
+  - `docs/references/p2_riscv_npu/lowering_rules_tensor_ops_full.md` — MatMul/Conv/FFN/LN/Softmax/GELU 등 일반 Tensor 연산 규칙  
+  - `docs/references/p2_riscv_npu/lowering_rules_kv_attention_full.md` — KV Cache 기반 Attention 전체 시퀀스
+
+### 8.1 공통 패턴 요약
+| IR TileOp | 필수 CMDQ 시퀀스 (요약) | 비고 |
+| --- | --- | --- |
+| MatMul / Conv (im2col) | `DMA_LOAD_TILE (IFM/WGT)` → `SYNC_WAIT` → `TE_MATMUL_TILE` → `SYNC_WAIT` → `DMA_STORE_TILE` | partial-sum 모드 시 TE accumulate flag 사용 |
+| FFN 1st MatMul + Bias + GELU | `LOAD X/W1/B1` → `TE_MATMUL_TILE` → `VE_ADD_TILE` → `VE_GELU_TILE` | Bias/GELU는 VE 타일 |
+| FFN 2nd MatMul | `LOAD W2` → `TE_MATMUL_TILE` → `DMA_STORE_TILE` | |
+| LayerNorm / RMSNorm | `LOAD X` → `VE_RMSNORM_TILE` → `STORE Y` | |
+| Softmax | `LOAD Scores` → `VE_SOFTMAX_TILE` → `STORE` | |
+| GELU | `LOAD` → `VE_GELU_TILE` → `STORE` | |
+
+### 8.2 KV-Attention 로워링 요약
+하나의 timestep에 대해 생성되는 대표 CMDQ 시퀀스:
+
+1. **Q/K/V Projection**  
+   `DMA_LOAD_TILE (X/Wq)` → `TE_MATMUL_TILE (Q)` → … → `TE_MATMUL_TILE (V)`  
+2. **KV Store**  
+   `KV_STORE_TILE head, spmK/V` (Prefill/Decode 공통)  
+3. **KV Load (Decode 시)**  
+   `KV_LOAD_TILE spmKall/Vall, head, kv_range_desc`  
+4. **Attention Score 및 Softmax**  
+   `TE_QKT_TILE`, `VE_SOFTMAX_TILE`  
+5. **Attn·V 및 Output Projection**  
+   `TE_AV_TILE`, `TE_MATMUL_TILE (output)` → `DMA_STORE_TILE`
+
+필수 Sync 규칙:
+- `DMA_LOAD_TILE → TE/VE`  
+- `KV_STORE_TILE → KV_LOAD_TILE` (head/seq 순서 보장)  
+- `TE_QKT_TILE → VE_SOFTMAX_TILE → TE_AV_TILE`  
+- `TE_AV_TILE → TE_MATMUL_TILE (output)` → `DMA_STORE_TILE`
+
+### 8.3 Offline Compiler 연계 지침
+- `CmdqGenerator`는 IR/TileGraph의 op tag를 기준으로 위 표의 시퀀스를 template화하여 emit한다.
+- KV-aware lowering 시 `cmdq_entry.details.tensor_role`, `head_id`, `kv_range_desc` 등을 채워야 하며, 스케줄러가 삽입한 deps를 유지한다.
+- 향후 새로운 op가 추가되면 참조 문서에 규칙을 정의하고, 부록을 갱신해 개발자들이 빠르게 확인할 수 있도록 한다.
