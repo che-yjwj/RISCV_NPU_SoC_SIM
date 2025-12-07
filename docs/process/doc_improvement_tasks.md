@@ -47,3 +47,20 @@ Spec-Driven Development 흐름상 **문서 우선 정비**가 필요하기 때�
 | [x] Design 문서 상태/Owner/다이어그램 보강 | `docs/design/*.md` | Medium | Completed (2025-12-03) | Core Maintainers | Owner/Status 헤더를 정리하고, 핵심 모듈(CycleLoop, SimulatorCore, ControlFSM, DMAEngine)에 텍스트 기반 플로우/파이프라인 다이어그램을 추가해 Design 계층의 상위 구조를 보강함 |
 | [x] Test 문서와 Spec/Design ID 매핑 정교화 | `docs/test/*.md`, `docs/spec/*.md`, `docs/design/*.md` | Medium | Completed (2025-12-03) | Core Maintainers | Unit/Integration/Performance/Golden 테스트 문서에 각 ID ↔ 관련 Spec/Design/ONNX/아티팩트 위치를 표로 정리(UT: 3.1, IT: 3.2, PV: 3.2, Golden: 3.2) |
 | [x] Trace/Visualizer 워크플로우 튜토리얼 | `docs/spec/trace/*.md`, `docs/design/visualizer_design.md` | Low | Completed (2025-12-03) | Core Maintainers | Trace 생성 → Golden 비교 → 시각화 3단계 튜토리얼을 trace_format_spec.md(9.1)와 visualizer_design.md(6장)에 추가하여, 처음 보는 사람도 기본 워크플로우를 따라갈 수 있도록 정리함 |
+| [ ] L2/LLC 메모리 계층 설계 반영 | `docs/overview/memory_noc_overview.md`, `docs/spec/timing/bus_and_noc_model.md`, `docs/spec/trace/gantt_timeline_spec.md`, `docs/test/golden_trace_examples.md`, `docs/spec/isa/cmdq_overview.md`, `docs/design/dma_engine_design.md`, `docs/references/p2_riscv_npu/lowering_rules_tensor_ops_full.md` | High | Pending | Core Maintainers | DRAM↔SPM 단일 계층 설명을 L2/LLC 캐시 계층 포함 구조로 재정의하고, DMA/Bus/Trace/Test 문서에 캐시 히트/미스, 용량/정책, CMDQ 기술 필드를 추가해 향후 모델링/시뮬레이션/로워링 룰을 확장하도록 백로그에 추가 |
+
+### 3.1 L2/LLC 및 관련 기능 단계별 구현 메모
+
+1. **기본 구조 정의**  
+   - `docs/overview/memory_noc_overview.md`: DRAM↔L2/LLC↔SPM 계층 다이어그램과 용량/latency/정책을 간단히 기술, “SPM보다 큰 캐시가 DRAM 접근을 차단한다”는 목표를 명시.  
+   - `docs/spec/timing/bus_and_noc_model.md`: L2/LLC 히트/미스 지연, line/way 파라미터를 추가하고 DRAM 모델과의 상호 작용을 정리.  
+2. **DMA/스케줄러와 프리패치/버스트 겹치기**  
+   - `docs/design/dma_engine_design.md`, `docs/spec/isa/cmdq_overview.md`: DMA 명령에 prefetch 힌트, 다중 버스트 그룹 필드를 정의하고 StaticScheduler가 deps를 통해 프리패치→연산 오버랩을 유도하는 규칙을 정리.  
+   - `docs/design/static_scheduler_design.md`: Prefetch Entry 생성 순서, deps_before 관계, 캐시 warm-up을 위한 스케줄링 정책을 간단 메모로 남김.  
+3. **압축/저정밀도 데이터 경로**  
+   - `docs/references/p2_riscv_npu/lowering_rules_tensor_ops_full.md` 및 관련 lowering 문서: 어느 타일이 압축/양자화 상태로 L2/DRAM에 상주하는지, SPM에 적재할 때 어떻게 풀어야 하는지 설명.  
+   - CMDQ/IR 필드에 비트폭/압축 스키마를 기록하도록 스펙을 보강해 시뮬레이터/컴파일러가 일관된 파라미터를 공유.
+4. **Trace/Test 확장**  
+   - `docs/spec/trace/gantt_timeline_spec.md`, `docs/test/golden_trace_examples.md`: 캐시 히트/미스 이벤트, 프리패치 타임라인, 다중 버스트 overlap, 압축 데이터 흐름을 보여주는 예제와 검증 절차 추가.  
+5. **Cross-link & 검증**  
+   - 각 문서에 상호 참조를 추가하고, 테스트 플랜에서 L2/LLC 기능 확인용 ID와 시나리오를 트래킹.
