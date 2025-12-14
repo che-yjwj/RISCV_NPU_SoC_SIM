@@ -28,12 +28,12 @@ Last Updated: 2025-12-05
 
 - [ ] **M1. Overview 1st Pass (0.5~1d)**  
   - 목표: 전체 흐름과 블록 다이어그램 이해.  
-  - 읽기: `docs/overview/system_architecture_overview.md`, `system_architecture.md`, `dataflow_overview.md`, 필요 시 `memory_noc_overview.md`, `module_responsibilities.md`.  
+  - 읽기: `docs/overview/system_architecture_overview.md`, `docs/overview/system_architecture.md`, `docs/overview/dataflow_overview.md`, 필요 시 `docs/overview/memory_noc_overview.md`, `docs/overview/module_responsibilities.md`.  
   - 산출물: ONNX→IR→Tile→CMDQ→Sim→Trace 한 줄 설명, 각 모듈 책임 요약, 이해한 흐름을 1페이지 메모로 정리.
 
 - [ ] **M2. IR/CMDQ 핵심 스펙 (1d)**  
   - 목표: IR 구조와 CMDQ 포맷을 연결해 파이프라인의 중심 축을 잡는다.  
-  - 읽기: `docs/spec/ir/npu_ir_spec.md`, `tensor_metadata_spec.md`, `quantization_ir_extension.md`, `docs/spec/isa/cmdq_overview.md`, `cmdq_format_spec.md`, `opcode_set_definition.md`.  
+  - 읽기: `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md`, `docs/spec/ir/quantization_ir_extension.md`, `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/spec/isa/opcode_set_definition.md`.  
   - 산출물: IR 필드 ↔ CMDQ 필드 매핑 표, 공통 예제(예: LLaMA block) 필드 흐름 요약, 모호점 리스트.
 
 - [ ] **M3. Timing/Quant/Trace 스펙 (1d)**  
@@ -43,12 +43,12 @@ Last Updated: 2025-12-05
 
 - [ ] **M4. Design 문서 (1d)**  
   - 목표: 스펙을 코드/엔진 관점으로 옮길 때의 책임과 인터페이스를 파악.  
-  - 읽기: `docs/design/offline_compiler_design.md`, `ir_builder_design.md`, `tiling_planner_design.md`, `spm_allocator_design.md`, `static_scheduler_design.md`, `cmdq_generator_design.md`, `npu_simulator_core_design.md`, `cycle_loop_design.md`, `control_fsm_design.md`, `dma_engine_design.md`, `te_engine_design.md`, `ve_engine_design.md`, `visualizer_design.md`.  
+  - 읽기: `docs/design/offline_compiler_design.md`, `docs/design/ir_builder_design.md`, `docs/design/tiling_planner_design.md`, `docs/design/spm_allocator_design.md`, `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md`, `docs/design/npu_simulator_core_design.md`, `docs/design/cycle_loop_design.md`, `docs/design/control_fsm_design.md`, `docs/design/dma_engine_design.md`, `docs/design/te_engine_design.md`, `docs/design/ve_engine_design.md`, `docs/design/visualizer_design.md`.  
   - 산출물: Pass/Engine별 입력/출력/주요 상태 변수 표, Cycle Loop 순서 메모.
 
 - [ ] **M5. Test/예제/Trace 워크플로 (0.5~1d)**  
   - 목표: “무엇을 검증해야 하는지” 관점을 확보.  
-  - 읽기: `docs/test/test_plan.md`, `unit_test_spec.md`, `integration_test_spec.md`, `performance_validation_protocol.md`, `golden_trace_examples.md`, `docs/spec/trace/gantt_timeline_spec.md`, `trace_format_spec.md`.  
+  - 읽기: `docs/test/test_plan.md`, `docs/test/unit_test_spec.md`, `docs/test/integration_test_spec.md`, `docs/test/performance_validation_protocol.md`, `docs/test/golden_trace_examples.md`, `docs/spec/trace/gantt_timeline_spec.md`, `docs/spec/trace/trace_format_spec.md`.  
   - 산출물: 테스트 ID ↔ Spec/Design 매핑 표, Golden Trace 워크플로 3단계 메모.
 
 - [ ] **M6. 백로그 포커스 (선택, 0.5d)**  
