@@ -1,0 +1,203 @@
+# NPU-IR Core Specification (TOG-Compatible)
+## npu_ir_core_spec.md
+
+Author ChatGPT (for 창훈)
+Reference PyTorchSim TOG (PSAL-POSTECH)
+Target Static-scheduled Mobile  Edge NPU Simulator & Compiler
+
+---
+
+## 0. Scope & Positioning
+
+본 문서는 PyTorchSim TOG(Tile Operation Graph)를
+정적 스케줄링 기반 모바일 NPU에 맞게 재정의한 NPU-IR의 코어 스펙이다.
+
+이 IR은 다음을 동시에 만족한다.
+
+- PyTorchSim TOG와 개념적구조적 호환
+- 정적 스케줄링 NPU에서 실행 가능
+- 컴파일러  시뮬레이터  CMDQ 백엔드의 공통 계약(Contract)
+
+---
+
+## 1. Design Principles
+
+1. Tile is the atomic execution unit
+2. Memory movement is explicit
+3. Synchronization is explicit (Tag + Wait)
+4. Loops are structural IR (not general control flow)
+5. Compute latency is deterministic
+6. IR is backend-agnostic
+
+주의
+- Instruction-level IR 아님
+- Micro-op IR 아님
+
+---
+
+## 2. Top-Level Objects
+
+### 2.1 NpuProgram
+
+NpuProgram
+  version string
+  hw_profile HwProfile
+  tensors TensorTable
+  graphs list[NpuGraph]
+
+### 2.2 HwProfile
+
+HwProfile
+  num_cores int
+  te_shape [int, int]        # e.g. [64, 64]
+  ve_lanes int               # SIMD width
+  spm_size_bytes int
+  spm_bank_count int
+  dram_bw_GBps float
+  noc_bw_GBps float
+
+의도
+- 컴파일 타임 타일 분해
+- TLS 사이클 추정
+- 자원 초과 검증
+
+---
+
+## 3. Tensor & Memory Model
+
+### 3.1 Tensor
+
+Tensor
+  tensor_id string
+  dtype f32  f16  bf16  int8  int4  i32
+  shape [int]
+  layout NCHW  NHWC  BLOCKED
+  memory_space DRAM  SPM
+
+### 3.2 MemRef
+
+MemRef
+  tensor_id string
+  space DRAM  SPM  L0  L1
+  dtype same as Tensor
+  shape [int]
+  base_addr optional[int]
+
+---
+
+## 4. Graph Structure
+
+### 4.1 NpuGraph
+
+NpuGraph
+  name string
+  entry NodeId
+  nodes map[NodeId, NpuNode]
+  edges list[Edge]
+
+### 4.2 Edge
+
+Edge
+  src NodeId
+  dst NodeId
+  kind DATA  EVENT  CONTROL
+
+Rules
+- Loop scope 내부에서는 DAG
+- 암묵적 순서 금지
+- 모든 의존성은 Edge 또는 Tag로 표현
+
+---
+
+## 5. Address Expression
+
+### 5.1 AFFINE (Tile Stride)
+
+AddressExpr
+  kind AFFINE
+  base int
+  terms
+    - loop_id int
+      stride int
+
+의미
+  addr = base + Σ(loop_idx  stride)
+
+### 5.2 INDIRECT (KV  Sparse)
+
+AddressExpr
+  kind INDIRECT
+  base int
+  index_ref MemRef
+  scale int
+
+---
+
+## 6. Tag & Synchronization Model
+
+### 6.1 Tag
+
+Tag
+  tensor_id string
+  tile_id string
+  epoch int
+  role LOAD  STORE  KV_LOAD  KV_STORE
+
+Semantics
+- Tag는 DMA 완료 이벤트를 의미
+- Tag는 전역적으로 유일
+- DmaWait은 tag completion barrier
+
+---
+
+## 7. Node Types
+
+### 7.1 LoopBegin  LoopEnd
+
+LoopBegin
+  loop_id int
+  loop_type PARALLEL  ACCUMULATION  INNER
+  iter_begin int
+  iter_end int
+  iter_step int
+
+Loop semantics
+- PARALLEL core-level 분할
+- ACCUMULATION 순차 누적 (decode)
+- INNER TEVE 내부 루프
+
+---
+
+### 7.2 DMA Nodes
+
+DmaLoad  DmaStore
+  src MemRef
+  dst MemRef
+  bytes int
+  addr AddressExpr
+  tag Tag
+
+DmaWait
+  wait_tags [Tag]
+  mode ALL
+
+---
+
+### 7.3 ComputeTile
+
+ComputeTile
+  engine TE  VE  SPARSE
+  cycles int
+  inputs [MemRef]
+  outputs [MemRef]
+  kernel_meta
+    op string
+    tile_shape [int]
+    dtype string
+
+---
+
+## 8. Notes
+
+- 본 문서는 IR의 구조와 의미를 정의한다.
+- 실행 모델, 스케줄링, CMDQ 매핑은 별도 문서에서 정의한다.
