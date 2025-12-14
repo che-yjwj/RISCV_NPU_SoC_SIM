@@ -187,6 +187,11 @@ dma_latency_raw = latency_burst + latency_bw
 Multi-TE/VE 동작 시 여러 DMA 요청이 동시에 발생할 수 있으므로  
 Bus contention 모델이 포함되어야 한다.
 
+결정론 규칙(필수):
+- contention/arbitration은 cycle 기반으로 모델링하되, 동일 입력이면 동일 결과가 나와야 한다.
+- 랜덤/RNG/seed 기반 중재 금지.
+- 중재(tie-break) 및 요청 처리 순서는 `docs/spec/timing/bus_and_noc_model.md`의 `arbitration_policy`/`tie_break`를 따른다.
+
 ### 7.1 Bandwidth 공유 방식
 
 두 가지 방식을 지원:

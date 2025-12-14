@@ -26,6 +26,10 @@ Trace 파일은 다음 목적을 위해 사용된다.
 본 스펙은 Trace 파일의 **논리 구조, JSON 스키마, 필드 의미**를 정의하며,  
 Simulator와 Viewer/Profiler가 공통으로 준수해야 하는 단일 포맷이다.
 
+관련 문서:
+- `docs/spec/architecture/tile_semantics_spec.md`
+- `docs/spec/trace/tile_semantics_validation_checklist.md`
+
 ---
 
 # 2. 전체 구조 개요 (Top-Level Structure)
@@ -103,10 +107,23 @@ Viewer/Profiler는 version을 확인하여 호환성 체크를 수행해야 한�
 | `cmdq_file` | string | 이 run에서 사용한 CMDQ 파일 경로 |
 | `ir_snapshot_file` | string (optional) | IR snapshot 파일 경로 |
 | `notes` | string (optional) | 자유 텍스트 메모 |
+| `deterministic` | bool (optional) | 동일 입력이면 동일 결과를 보장하는 결정론 모드 여부(기본 true 권고) |
+| `arbitration_policy` | string (optional) | 버스/NoC 중재 정책 식별자(예: `weighted_rr_v1`, `rr_v1`; `bus_and_noc_model.md` 참조) |
+| `tie_break` | string (optional) | 동률 처리 규칙 식별자(예: `by_master_id`; `bus_and_noc_model.md` 참조) |
 
 # 5. config_snapshot
 시뮬레이터 구성 상태를 snapshot으로 기록.
 (TE/VE 수, DMA 채널 수, bitwidth 허용 범위 등)
+
+필드 규칙(권고):
+
+- `config_snapshot.npu.num_dma`, `num_te`, `num_ve`는
+  CMDQ 엔트리의 `dma_id`/`te_id`/`ve_id` 범위를 정의한다.
+  - `dma_id ∈ [0, num_dma-1]`
+  - `te_id ∈ [0, num_te-1]`
+  - `ve_id ∈ [0, num_ve-1]`
+- 이 값들이 기록되어야 Trace만으로도 실행 결과의 재현 및
+  결정론적 중재(`bus_and_noc_model.md`, `spm_model_spec.md`) 조건을 검증할 수 있다.
 
 예시:
 

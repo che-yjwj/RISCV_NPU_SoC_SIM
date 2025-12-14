@@ -4,7 +4,28 @@
 `NPU Tile IR → HW 실행 단위(TE/VE/DMA)`로 변환하는 **Tile Lowering 규칙**과,
 이를 기반으로 한 **Static Scheduler의 설계 원칙과 알고리즘**을 정의한다.
 
-이 문서는 `tile_contract_spec.md`, `npu_tile_ir_spec.md`를 전제로 한다.
+이 문서는 `../contracts/tile_contract.md`, `../ir/tile_ir_spec.md`를 전제로 한다.
+
+---
+
+## 0. 스케줄러 목표와 기본 전제
+
+본 스케줄러는 “런타임에서 동적으로 최적화”하기보다,
+**컴파일 타임에 결정 가능한 실행 계획을 고정**하는 것을 목표로 한다.
+
+최적화 관점(권고):
+
+- Decode 지연(latency) 중심: Time-to-First-Token(TTFT) 및 tail latency 최소화
+- Prefill은 throughput도 중요하나, 아키텍처 불변 규칙(메모리/라이프사이클)을 우선한다
+
+전제:
+
+- 입력은 Tile IR의 TDG이며, 암묵적 순서는 없다
+- 자원 제약(SPM capacity, DMA contention)을 모델링한다
+- 결과는 결정적(deterministic)이어야 하며 랜덤 요소가 없다
+
+관련:
+- Prefill/Decode 워크로드 매핑: `prefill_decode_workload_mapping.md`
 
 ---
 
@@ -173,6 +194,20 @@ Scheduler는 **실행 전 전체 계획을 확정**한다.
 
 ## 6. Static Scheduling 알고리즘 (개념)
 
+스케줄링 구현은 다양한 방식이 가능하나,
+아래의 **공통 데이터 구조와 전역 루프 의미론**을 만족해야 한다.
+
+### 6.0 내부 데이터 구조(권고)
+
+- Ready Queue
+  - unresolved dependency가 0인 tile/task 집합
+- Running Table
+  - 실행 중인 task와 남은 시간(또는 완료 시점) 추적
+- Dependency Counter
+  - `dep_count[id]` 형태로 predecessor 완료 수를 반영
+
+이 구조는 trace/gantt 및 stall 원인 분석에 직접 연결된다.
+
 ### 6.1 기본 단계
 
 1. TDG Topological Sort
@@ -239,3 +274,40 @@ Time | Engine | Task | Tile | State
 
 이 문서는 Tile-centric NPU Simulator의 실행 모델을 고정한다.
 
+---
+
+## 부록 A. Global Cycle Loop 실행(시뮬레이터 관점)
+
+시뮬레이터가 global-cycle timebase에서 자원 경합/스톨을 관측하려면,
+다음과 같은 전역 루프가 필요하다.
+
+```text
+for cycle in global_cycles:
+  1. Update running tasks
+  2. Retire completed tasks
+  3. Update dependency counters
+  4. Push newly-ready tasks into ReadyQueue
+  5. Dispatch tasks if resources available
+```
+
+중요:
+- 위 루프는 “동적 재스케줄링”을 의미하지 않는다.
+- dispatch 정책/우선순위는 정적 입력(TDG + 자원 제약 모델)으로부터 **결정적으로** 계산되어야 한다.
+
+---
+
+## 부록 B. Stall 모델링 & Trace 연계(권고)
+
+Task가 dispatch되지 못하는 대표 원인:
+
+- Engine busy (동일 엔진 동시 실행 제한)
+- SPM capacity 초과 (resident 타일 수/바이트 초과)
+- DMA contention 또는 burst alignment penalty
+- Explicit barrier / tag-wait
+
+Stall 원인은 trace에 기록되어야 하며, 최소 필드는 다음을 권고한다.
+
+- task/tile id
+- engine_type
+- start/end cycle
+- stall_reason (optional)

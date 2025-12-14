@@ -14,8 +14,19 @@ Global cycle loop는 시뮬레이터의 “메인 루프”로, **모든 엔진/
 관련 스펙:
 - `docs/overview/system_architecture.md`
 - `docs/spec/isa/cmdq_overview.md`
+- `docs/spec/architecture/tile_semantics_spec.md`
 - `docs/spec/timing/*.md`
 - `docs/spec/trace/trace_format_spec.md`
+- 결정론적 중재(버스/NoC): `docs/spec/timing/bus_and_noc_model.md`
+- 결정론적 중재(SPM): `docs/spec/timing/spm_model_spec.md`
+
+## 1.1 결정론 규칙(필수)
+
+Cycle loop는 **동일 입력이면 동일 결과**가 나와야 한다.
+
+- 랜덤/RNG/seed 기반 동작 금지
+- tick 순서, 이벤트 수집 순서, enqueue 순서, arbitration(tie-break) 규칙을 문서로 고정
+- 결정성의 기준 입력: CMDQ, config(profile), 초기 상태(SPM/queue occupancy 포함)
 
 ## 2. 책임
 - **입력**
@@ -67,6 +78,18 @@ while not control_fsm.is_finished() and cycle < max_cycles:
     trace_engine.step(cycle)
 
     cycle += 1
+```
+
+결정론을 위해 아래를 고정한다.
+
+- `tickables_in_order`는 고정이며, 런타임에 재정렬하지 않는다.
+- `collect_engine_completion_events()`는 `(engine_type, engine_id, completion_cycle, local_seq)` 순으로 정렬된 이벤트를 반환한다.
+- `issue_reqs`는 `(engine_type, engine_id, cmdq_index)` 순으로 정렬하여 enqueue 한다.
+
+여기서 `engine_type`의 정렬 순서는 다음을 따른다.
+
+```text
+engine_type_order: DMA=0, TE=1, VE=2, MEMORY=3, TRACE=4, CONTROL=5
 ```
 
 ## 4. 알고리즘 / 플로우

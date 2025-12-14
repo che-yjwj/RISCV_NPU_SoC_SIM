@@ -18,6 +18,10 @@ Target Static-scheduled Mobile  Edge NPU Simulator & Compiler
 - 정적 스케줄링 NPU에서 실행 가능
 - 컴파일러  시뮬레이터  CMDQ 백엔드의 공통 계약(Contract)
 
+관련 문서:
+- Tile IR(TDG/TileDesc/Tile ops): `tile_ir_spec.md`
+- 로어링/실행 의미론(TLS/Global-cycle): `npu_ir_lowering_and_execution.md`
+
 ---
 
 ## 1. Design Principles

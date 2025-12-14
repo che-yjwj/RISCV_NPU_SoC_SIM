@@ -50,6 +50,7 @@ CMDQ 기반 ISA에서 사용되는 **opcode 전체 집합과 카테고리**를 �
 - **목적:** DRAM → SPM 방향 타일 로드.
 - **Engine:** DMAEngine.
 - **주요 필드(추가):**
+  - `dma_id` (DMA 엔진/채널 인덱스, 단일 DMA면 0 고정)
   - `tensor_role` (weight / activation / kv / embedding)
   - `qbits`
   - `dram_addr`

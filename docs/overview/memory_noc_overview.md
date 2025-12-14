@@ -19,6 +19,7 @@
 관련 문서:
 
 - 시스템 관점: `docs/overview/system_architecture.md`  
+- 아키텍처 의미론: `docs/spec/architecture/tile_semantics_spec.md`  
 - 타이밍 스펙: `docs/spec/timing/dma_timing_spec.md`, `spm_model_spec.md`, `bus_and_noc_model.md`  
 - 설계 문서: `docs/design/dma_engine_design.md`, `spm_allocator_design.md`, `cycle_loop_design.md`
 
