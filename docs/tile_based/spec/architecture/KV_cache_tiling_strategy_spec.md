@@ -21,6 +21,15 @@ Global SRAM 및 연산 엔진에 어떻게 매핑해야 하는지를 정의한�
 
 ---
 
+### 관련 문서
+- 메모리 계층: `memory_hierarchy.md`
+- 데이터플로우/엔진: `dataflow_te_ve.md`, `compute_engines.md`
+- 워크로드 매핑: `../scheduling/prefill_decode_workload_mapping.md`
+- 타일 계약: `../contracts/tile_contract.md`
+- KV stride/interleave 모델링: `../../design/analysis/tile_rt_analysis_for_npu_simulator.md`
+
+---
+
 ## 2. KV Cache의 역할과 기본 전제
 
 ### 2.1 KV Cache의 역할
@@ -68,10 +77,15 @@ KV cache 타일링은 다음 원칙을 반드시 따른다.
 2. KV cache는 **연속된 시간 구간** 단위로 타일링된다
 3. 타일은 Global SRAM에 staging된 후 소비된다
 4. 소비가 끝난 타일은 즉시 해제된다
-5. KV cache 타일은 재사용되지 않는다
+5. **타임 타일**은 한 번 소비 후 해제된다
+6. 동일한 타임 타일 안에서의 **head/group 간 재사용**은 섹션 5, 6 규칙에 따라 Global SRAM에서만 허용된다
 
 KV cache 타일은 “저장 자산”이 아니라
 “스트리밍 입력”으로 취급된다.
+
+여기서 “재사용 불가”는 **시간 축(Time_tile) 재방문이 금지**됨을 의미한다.
+단, 하나의 Time_tile에 속하는 KV 타일을 여러 head/group이 순차적으로 읽는
+재사용은 Global SRAM 상주 조건에서만 허용된다.
 
 ---
 
@@ -95,6 +109,7 @@ K/V 로드 패턴의 효율성이 중요해진다.
 - 타일은 다음 형태를 가진다.
   - [Time_tile × Dh]
 - 하나의 KV 타일은 모든 Query head에서 재사용된다
+- 재사용은 **동일 Time_tile 내부**이며 Global SRAM에 상주한 상태에서만 발생한다
 
 MQA에서는 KV 타일 재사용이 허용되며,
 이는 Global SRAM에서만 발생해야 한다.
@@ -134,6 +149,7 @@ GQA는 MQA와 Multi-Head Attention(MHA)의 중간 형태이다.
 - 타일은 다음 형태를 가진다.
   - [Group × Time_tile × Dh]
 - 하나의 KV 타일은 동일 Group 내 Query head에서만 재사용된다
+- 재사용은 **동일 Time_tile 내부**이며 Global SRAM 상주를 전제로 한다
 
 Group 경계를 넘는 KV cache 재사용은 허용되지 않는다.
 
@@ -176,6 +192,28 @@ Interleaved heads 구조는 다음을 목표로 한다.
 
 이 배치는 Decode 단계에서
 연속적인 DMA burst 로드를 가능하게 한다.
+
+배치 규칙(권고값 포함):
+
+- **선형 주소 순서**: (t_in_tile → interleave_idx(head/group) → dh) 중첩 루프
+- **Interleave 폭**: head/group을 `I`개씩 번갈아 배치하며 `I`는 Global SRAM bank 수의 약수로 선택
+- **Stride 규칙**:
+  - `Dh_stride = round_up(Dh, bank_width_bytes)`
+  - `Head_stride = Time_tile_len × Dh_stride`
+  - `Time_stride = I × Head_stride`
+- 주소 산식 예시: `addr = base + t*Dh_stride + interleave_idx*Head_stride + dh`
+- `Dh_stride`는 bank conflict가 최소화되도록 bank 폭 또는 그 배수로 정렬한다
+
+용어 정의 및 기본값 예시:
+
+- `Dh`: head hidden dimension
+- `Time_tile_len`: 한 타임 타일의 시점 수
+- `bank_width_bytes`: Global SRAM 단일 bank 폭(예: 32B)
+- `Dh_stride`: bank 폭 정렬한 head 차원 stride (예: Dh=128, bank=32B → Dh_stride=128B)
+- `I`(interleave 폭): bank 수의 약수로 선택 (예: bank=8 → I=2 또는 4 권장)
+- 예시 산식(예: Time_tile_len=16, Dh_stride=128B, I=2):
+  - `Head_stride = 16 × 128B = 2048B`
+  - `Time_stride = 2 × 2048B = 4096B`
 
 ---
 
@@ -221,6 +259,13 @@ Decode 단계에서는 다음 스케줄링 규칙을 따른다.
 
 KV cache 로드는 파이프라인의 일부이지,
 독립된 단계가 아니다.
+
+권고 스케줄 파라미터(시뮬레이터 기본값):
+
+- **Prefetch 큐 깊이**: head/group 당 최소 2개의 Time_tile
+- **동시 상주 KV 타일 수(`N_KV_inflight`)**: head/group 당 2~3개 (Global SRAM 용량 제약 내)
+- **Prefetch lead**: TE가 소비 중인 타일 대비 최소 1타일 선행 로드 유지
+- **Softmax 다중 패스 시**: 각 패스마다 max/sum을 타일 단위로 저장하고, 최종 정규화는 동일 Time_tile 범위에서만 수행한다
 
 ---
 

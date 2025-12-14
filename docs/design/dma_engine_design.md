@@ -175,7 +175,7 @@ for each cycle:
 
 ### 4.5 Bus/NoC 모델 연동
 - DMAEngine은 `memory_model.tick()`으로부터 마스터별 grant 토큰/queue depth를 전달받는다.
-- `master_weights`(`bus_and_noc_model.md`)에 따라 activation/weight DMA와 KV DMA가 각기 다른 grant 확률을 가진다.
+- `master_weights`(`bus_and_noc_model.md`)에 따라 activation/weight DMA와 KV DMA가 **결정론적으로** 서로 다른 bus share(grant 빈도/지속)를 갖는다.
 - TraceEngine은 `noc_queue_depth`, `stall_event` 메트릭을 기록하여 DRAM/NoC 병목 분석에 활용한다.
 
 ## 5. 인터페이스

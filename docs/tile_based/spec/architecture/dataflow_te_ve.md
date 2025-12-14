@@ -1,5 +1,9 @@
 # Tensor Engine – Vector Engine 데이터플로우 명세
-# (TE–VE Dataflow & Interface Semantics Specification)
+_(TE–VE Dataflow & Interface Semantics Specification)_
+
+> 메인 스펙으로 승격됨: [tile_semantics_spec.md](../../../spec/architecture/tile_semantics_spec.md)  
+> STB 채택 RFC: [stb_adoption_rfc.md](../../../spec/architecture/stb_adoption_rfc.md)  
+> 본 문서는 tile_based 트랙에서의 확장/예시를 포함하며, 규범은 메인 스펙을 단일 소스 오브 트루스로 한다.
 
 ## 1. 문서 목적
 
@@ -16,7 +20,16 @@
 DRAM 접근 없이 온칩에서 유지되도록 보장하는 것을 목표로 한다.
 
 ---
+
+### 관련 문서
+- 엔진 역할: `compute_engines.md`
+- 라이프사이클: `tile_lifecycle.md`
+- 타일 계약: `../contracts/tile_contract.md`
+- 워크로드 매핑/스케줄링: `../scheduling/prefill_decode_workload_mapping.md`, `../scheduling/static_scheduler_spec.md`
+
+---
 ### 전체 구조 다이어그램
+```text
 아키텍처의 공간·시간·책임·인터페이스
 ┌─────────────────────────────────────────────────────────────┐
 │                          DRAM                               │
@@ -57,6 +70,7 @@ DRAM 접근 없이 온칩에서 유지되도록 보장하는 것을 목표로 �
         │ - 파이프라인 경계
         │
         └────────────────────────────────────────
+```
 
 ## 2. 데이터플로우의 기본 원칙
 
@@ -86,6 +100,11 @@ TE와 VE 사이의 데이터 흐름은 다음 단계로 구성된다.
 
 이 흐름은 타일 라이프사이클 명세에 정의된
 상태 전이를 정확히 따른다.
+
+TE → VE 경로에서는 **최초 handoff 시 STB 통과가 필수**이다.
+VE 내부에서 동일 타일을 반복 소비하는 경우에는
+글로벌 SRAM에서 직접 재사용할 수 있으며,
+이때 STB 재경유는 필요하지 않다.
 
 ---
 

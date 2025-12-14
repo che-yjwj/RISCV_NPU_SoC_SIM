@@ -11,6 +11,14 @@
 ## 1. 목적
 Host↔DRAM, DRAM↔NPU, NPU 내부 NoC의 대역폭/지연/중재 정책을 명시하여 DMA/TE/VE 레이턴시 모델이 동일한 버스 제약을 공유하도록 한다.
 
+## 1.1 결정론 규칙(필수)
+본 레포의 cycle-based 시뮬레이터는 **동일 입력이면 동일 결과**가 나와야 한다.
+따라서 Bus/NoC 경합 모델은 다음을 만족해야 한다.
+
+- 랜덤/RNG/seed 기반 중재 금지
+- 동일한 요청 집합과 동일한 초기 상태에서 동일 grant 결과 보장
+- 동률(tie) 발생 시 tie-break 규칙을 문서로 고정
+
 ## 2. 계층 구조
 1. **External DRAM Bus:** peak_bw_bytes_per_cycle, channel 수.
 2. **On-chip NoC:** TE/VE/DMA/Trace 간 트래픽 전달, hop latency, arbitration 정책.
@@ -21,10 +29,45 @@ Host↔DRAM, DRAM↔NPU, NPU 내부 NoC의 대역폭/지연/중재 정책을 명
 - `num_channels`, channel interleaving function
 - `noc_topology`: bus, mesh, crossbar 등
 - `hop_latency_cycles`, `router_pipeline_depth`
-- `arbitration_policy`: round-robin, priority-weighted
+- `arbitration_policy`: 아래 “3.1 Arbitration Policy ID”를 따른다.
 - `master_weights`: DMA / TE / Trace 등 마스터별 가중치
 - `queue_depth_per_master`: 마스터별 outstanding 트랜잭션 상한
 - `stall_event_threshold`: 큐가 꽉 찼을 때 stall 이벤트를 기록하는 임계치
+- `tie_break`: 동률 발생 시 선택 규칙(필수, 결정론 보장 목적)
+
+### 3.1 Arbitration Policy ID (결정론)
+
+본 문서에서 허용하는 `arbitration_policy` 식별자는 다음과 같다.
+
+- `rr_v1`
+  - ready master를 고정된 순서로 순회하며 round-robin grant
+- `weighted_rr_v1`
+  - 5.2 절의 토큰 기반 weighted round-robin
+
+기본값(권고):
+- `arbitration_policy = weighted_rr_v1`
+- `tie_break = by_master_id`
+
+### 3.2 Master ID & Ordering (결정론)
+
+모든 bus/NoC 요청은 아래 필드를 가진다고 가정한다.
+
+- `master_type`: `DMA | TE | VE | TRACE`
+- `master_id`: `int` (master_type 내에서 유일)
+
+결정론을 위한 전역 정렬 키는 다음과 같다.
+
+```text
+master_key = (type_rank(master_type), master_id)
+type_rank: DMA=0, TE=1, VE=2, TRACE=3
+```
+
+이 문서에서 “master_id 오름차순”이라 함은 `master_key` 기준 오름차순을 의미한다.
+
+ID 매핑(권고):
+
+- `master_type=DMA`의 `master_id`는 CMDQ 엔트리의 `dma_id`를 사용한다.
+- `master_type=TE`의 `master_id`는 `te_id`, `master_type=VE`의 `master_id`는 `ve_id`를 사용한다.
 
 ## 4. Latency 모델
 ```
@@ -53,14 +96,25 @@ else:
 큐가 가득 차면 DMAEngine/DmaJob이 `stall` 상태로 유지되며,  
 다음 사이클에 다시 enqueue를 시도한다. Trace에는 `stall_event`로 기록된다.
 
+결정론을 위해 다음을 고정한다.
+
+- 동일 cycle에 enqueue 요청이 여러 개 발생하면, enqueue 순서는 `master_key` 오름차순
+- 큐 내부 순서는 FIFO이며, 동일 cycle enqueue 간 tie는 위 순서를 따른다
+
 ### 5.2 Priority-weighted Arbitration
-`arbitration_policy="weighted_rr"` 설정 시, `master_weights`를 사용하여 토큰 기반 스케줄링을 수행한다.
+`arbitration_policy="weighted_rr_v1"` 설정 시, `master_weights`를 사용하여 토큰 기반 스케줄링을 수행한다.
 
 ```pseudo
 token[master] += master_weights[master]
 choose master with max token among ready masters
 token[chosen] -= total_weight
 ```
+
+결정론을 위해 다음을 고정한다.
+
+- `token[master]`의 초기값은 0
+- “ready masters”의 열거 순서는 `master_id` 오름차순
+- 동률(max token tie)인 경우 `master_id`가 작은 master를 선택
 
 KV 채널을 가진 DMA는 `master_weights["dma_kv"]=weight_high`로 설정해 Prefill/Decode 시 각 head가 장시간 대기하지 않도록 한다.
 

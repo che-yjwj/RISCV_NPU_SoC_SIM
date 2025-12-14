@@ -280,6 +280,13 @@ CMDQGenerator (flattened JSON)
 - quantization에 따른 성능 영향 분석  
 - LLM KV cache traffic 확인
 
+추가로, 본 레포의 시뮬레이터는 **cycle 기반 경합을 결정론적으로 모델링**한다.
+
+- 동일 CMDQ + 동일 config/profile + 동일 초기 상태이면 항상 동일 결과
+- 따라서 bus/NoC/SPM arbitration은 랜덤을 사용하지 않으며 tie-break 규칙이 고정된다
+- 결정론적 중재 규칙: `docs/spec/timing/bus_and_noc_model.md`, `docs/spec/timing/spm_model_spec.md`
+- 이를 위해 CMDQ 엔트리는 엔진 인덱스(`dma_id`/`te_id`/`ve_id`)를 명시한다 (`cmdq_format_spec.md`)
+
 ---
 
 # 9. CMDQ 명령 카테고리 개요

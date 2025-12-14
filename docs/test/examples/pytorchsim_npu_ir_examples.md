@@ -12,6 +12,9 @@ Target: Static-scheduled Mobile / Edge NPU Simulator & Compiler
 본 문서는 NPU-IR Core Spec과 Lowering & Execution Spec에서 정의한
 개념을 **실행 가능한 예제 형태**로 정리한다.
 
+관련(메인 스펙 체크리스트):
+- [tile_semantics_validation_checklist.md](../../spec/trace/tile_semantics_validation_checklist.md)
+
 모든 예제는 다음 목적을 가진다.
 
 - IR 구조의 정형적 사용법 제시
@@ -35,17 +38,20 @@ Target: Static-scheduled Mobile / Edge NPU Simulator & Compiler
 
 ### 1.2 High-Level Execution Pattern
 
+```text
 for m_tile in 0..7 (PARALLEL):
   DMA load A_tile[m]
   DMA load B_tile
   wait for A_tile[m], B_tile
   TE compute C_tile[m] = A_tile[m] @ B_tile
   DMA store C_tile[m]
+```
 
 ---
 
 ### 1.3 NPU-IR Representation
 
+```yaml
 LoopBegin:
   loop_id: 0
   loop_type: PARALLEL
@@ -105,6 +111,7 @@ DmaStore:
 
 LoopEnd:
   loop_id: 0
+```
 
 ---
 
@@ -131,6 +138,7 @@ LoopEnd:
 
 ### 2.2 High-Level Execution Pattern
 
+```text
 for i in 0..127 (ACCUMULATION):
   DMA load K_i from KV-cache
   wait for K_i
@@ -139,11 +147,13 @@ for i in 0..127 (ACCUMULATION):
 VE compute:
   softmax(scores)
   weighted sum with V
+```
 
 ---
 
 ### 2.3 NPU-IR Representation
 
+```yaml
 LoopBegin:
   loop_id: 0
   loop_type: ACCUMULATION
@@ -189,6 +199,7 @@ ComputeTile:
     op: softmax_reduce_weighted_sum
     tile_shape: [128]
     dtype: i32_to_f16
+```
 
 ---
 
@@ -215,15 +226,18 @@ ComputeTile:
 
 ### 3.2 High-Level Execution Pattern
 
+```text
 for t in 0..127 (PARALLEL):
   TE compute K_tile, V_tile
   DMA store K_tile → KV-cache
   DMA store V_tile → KV-cache
+```
 
 ---
 
 ### 3.3 NPU-IR Representation
 
+```yaml
 LoopBegin:
   loop_id: 0
   loop_type: PARALLEL
@@ -255,6 +269,7 @@ DmaStore:
 
 LoopEnd:
   loop_id: 0
+```
 
 ---
 
@@ -283,3 +298,37 @@ LoopEnd:
 - 본 예제들은 IR 설계의 “정답 패턴”이다.
 - 실제 모델은 이들의 조합으로 표현된다.
 - Simulator 검증 시 regression reference로 사용 권장.
+
+---
+
+## 6. Determinism Guarantees (권고)
+
+아래 항목들은 시뮬레이터/컴파일러가 결과를 재현 가능하게 만들기 위한
+최소 결정성 규칙이다.
+
+- 동일 입력 IR은 동일한 타일/태스크 실행 순서를 가져야 한다 (랜덤 금지)
+- 모든 동기화는 명시적이어야 한다 (Tag emit/wait 또는 TDG dependency)
+- DRAM 접근은 `DmaLoad/DmaStore`로만 표현되어야 한다
+- 타일 payload는 Global SRAM/SPM에 상주하고, 엔진은 이를 load/store로만 접근한다
+- TE→VE handoff는 STB(디스크립터 스트림)로만 모델링한다
+
+---
+
+## 7. Simulator Validation Checklist (요약)
+
+다음 항목은 예제 기반으로 빠르게 구현 정확도를 검증하기 위한 체크리스트이다.
+
+- Tile lifetime: allocate/produce/handoff/consume/free 순서 위반이 없어야 한다
+- Global SRAM: 점유(바이트/타일 수) 추적과 초과 시 stall/실패 처리가 있어야 한다
+- STB: payload 없이 디스크립터만 전달하고 ready/valid/back-pressure를 모델링해야 한다
+- Prefill→Decode 전환: KV cache는 DRAM에 영속 저장되고, Decode에서는 Time_tile 단위로 staging되어야 한다
+- Decode 모델: KV 타일 DMA prefetch와 TE/VE 연산이 중첩될 수 있어야 하며, stall 원인이 trace로 남아야 한다
+
+간단 타임라인 예시(개념):
+
+```text
+Cycle →
+DMA_LOAD(KV_tile) ───┐
+                      ├─ overlap
+TE/VE compute(tile)   ┘
+```

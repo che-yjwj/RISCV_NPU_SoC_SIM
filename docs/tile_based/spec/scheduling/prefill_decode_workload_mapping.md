@@ -204,6 +204,9 @@ STB는 두 단계 모두에서 핵심적이다.
   - Q(1) × K(T) score tile → Softmax
 
 Attention 경로에서 STB는 필수 구조 요소이다.
+TE가 생성한 타일이 VE에 전달될 때는 **최소 1회 STB handoff**가 발생해야 하며,
+VE 내부에서 동일 타일을 반복 소비할 때는
+STB 재경유 없이 글로벌 SRAM 재사용이 허용된다.
 
 ---
 
@@ -236,6 +239,9 @@ Attention 경로에서 STB는 필수 구조 요소이다.
   - layer → time step
 - KV tile은 선prefetch 후 소비
 - DMA, TE, VE가 중첩 실행되도록 정적 스케줄링
+- head/group 당 **prefetch 큐 깊이 2타일 이상**을 기본값으로 생성
+- 동시 상주 KV 타일 수는 Global SRAM 용량 내에서 2~3개로 제한하여
+  스케줄러가 해제 이벤트를 명시적으로 모델링하도록 한다
 
 ---
 

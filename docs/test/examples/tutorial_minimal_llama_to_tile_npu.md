@@ -1,6 +1,9 @@
 # From Minimal NumPy LLaMA to Tile-based NPU Modeling
 ## A Practical Tutorial for Understanding LLMs on NPUs
 
+관련(메인 스펙 체크리스트):
+- [tile_semantics_validation_checklist.md](../../spec/trace/tile_semantics_validation_checklist.md)
+
 > 이 문서는 **NumPy로 구현한 가장 단순한 LLaMA**를 출발점으로,
 > 이를 **타일 기반 NPU 관점(Tensor Engine / Vector Engine / SRAM / DRAM)**에서
 > 어떻게 해석하고 성능 모델링까지 확장할 수 있는지를 단계적으로 설명한다.
@@ -303,4 +306,3 @@ Softmax는 다음 SFPU 패스로 분해:
 
 이 레포는 **“정답을 주는 시뮬레이터”가 아니라
 “설계 판단을 돕는 시뮬레이터”**를 목표로 한다.
-

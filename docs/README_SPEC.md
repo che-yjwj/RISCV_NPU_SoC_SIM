@@ -27,6 +27,7 @@
 | 문서 | 우선순위 | 선행 문서 | 설명 |
 | --- | --- | --- | --- |
 | `docs/overview/system_architecture.md` | 필수 | README.md | 전체 아키텍처 기준선 |
+| `docs/spec/architecture/tile_semantics_spec.md` | 권장 | overview/system_architecture.md, overview/memory_noc_overview.md | 타일 라이프사이클/메모리/엔진 데이터플로우 최소 의미론 |
 | `docs/spec/ir/npu_ir_spec.md` | 필수 | overview/system_architecture.md, overview/dataflow_overview.md | 모든 컴파일러/시뮬레이터 단계가 참조 |
 | `docs/spec/ir/quantization_ir_extension.md` | 권장 | spec/ir/npu_ir_spec.md | IR 확장 규칙이 IR 스펙을 상속 |
 | `docs/spec/isa/cmdq_format_spec.md` | 필수 | spec/ir/npu_ir_spec.md, spec/isa/cmdq_overview.md | IR → CMDQ 변환 및 시뮬레이터가 의존 |
@@ -49,6 +50,10 @@ docs/
 │   └── sdd_devflow_overview.md
 │
 ├── spec/
+│   ├── architecture/
+│   │   ├── README.md
+│   │   ├── stb_adoption_rfc.md
+│   │   └── tile_semantics_spec.md
 │   ├── ir/
 │   │   ├── npu_ir_spec.md
 │   │   ├── quantization_ir_extension.md
@@ -134,6 +139,11 @@ NPU 시스템의 큰 그림, 데이터 흐름, 책임 분할 문서들
 Spec Driven Development의 중심.
 
 모든 기능은 이 spec 문서를 먼저 업데이트하고 코드 변경은 그 뒤에 진행한다.
+
+### 2.2.0 Architecture Semantics 스펙
+
+- **tile_semantics_spec.md** *(권장)* — Tile 라이프사이클/메모리 계층/TE–VE 데이터플로우 최소 불변 규칙
+- **stb_adoption_rfc.md** *(참고)* — STB(Shared Tile Buffer) 의미론/채택 범위 결정(RFC)
 
 ### 2.2.1 IR 스펙
 

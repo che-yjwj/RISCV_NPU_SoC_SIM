@@ -328,6 +328,10 @@ TE/VE/tile planner에 맞게 정규화된 layout을 사용한다.
 
 LayerIR은 tile 단위로 분해되어 TileGraph를 형성한다.
 
+> 참고(선택): `docs/tile_based/spec/ir/tile_ir_spec.md`는 TileGraph 이후 단계에서
+> 스케줄러/시뮬레이터 인터페이스를 명확히 하기 위한 Tile IR(TDG/TileDesc) 대안 표현을 정의한다.
+> 메인 스펙의 단일 소스 오브 트루스는 `docs/spec/ir/npu_ir_spec.md`이며, Tile IR 채택은 옵션이다.
+
 ### 9.1 Tile 구조
 
 Tile은 다음 정보를 갖는다.

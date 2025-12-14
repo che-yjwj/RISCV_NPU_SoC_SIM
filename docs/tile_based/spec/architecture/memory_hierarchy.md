@@ -1,5 +1,9 @@
 # 메모리 계층 명세 (Memory Hierarchy Specification)
 
+> 메인 스펙으로 승격됨: [tile_semantics_spec.md](../../../spec/architecture/tile_semantics_spec.md)  
+> STB 채택 RFC: [stb_adoption_rfc.md](../../../spec/architecture/stb_adoption_rfc.md)  
+> 본 문서는 tile_based 트랙에서의 확장/예시를 포함하며, 규범은 메인 스펙을 단일 소스 오브 트루스로 한다.
+
 ## 1. 문서 목적
 
 본 문서는 타일 기반 NPU 아키텍처에서 사용되는 **메모리 계층(memory hierarchy)** 의
@@ -10,6 +14,15 @@
 
 본 명세는 타일 라이프사이클 명세와 함께,
 시뮬레이터 및 하드웨어 설계에서 **잘못된 데이터 이동 구조를 원천적으로 차단**하는 것을 목표로 한다.
+
+---
+
+### 관련 문서
+- 타일 라이프사이클: `tile_lifecycle.md`
+- 데이터플로우: `dataflow_te_ve.md`
+- KV 타일링: `KV_cache_tiling_strategy_spec.md`
+- 타일 계약: `../contracts/tile_contract.md`
+- 스케줄링 제약: `../scheduling/static_scheduler_spec.md`
 
 ---
 
@@ -35,6 +48,7 @@ DRAM은 다음 목적만을 가진다.
 
 - 입력 텐서의 영속 저장
 - 최종 출력 텐서의 저장
+- **예외적 영속 데이터인 KV cache 저장** (Decode 단계 반복 활용을 위한 장기 보관)
 
 DRAM은 타일의 **중간 결과 저장소가 아니다**.
 
@@ -45,6 +59,7 @@ DRAM은 타일의 **중간 결과 저장소가 아니다**.
 - 연산 중간 결과 타일을 DRAM에 기록하는 행위
 - TE와 VE 사이의 데이터 전달을 위해 DRAM을 사용하는 행위
 - 타일 라이프사이클 중 DRAM을 경유하는 데이터 흐름
+- KV cache 외의 타일을 장기 저장/재사용 목적으로 DRAM에 두는 행위
 
 DRAM 접근은 반드시 **DMA 또는 명시적 전송 단계**를 통해서만 이루어져야 한다.
 

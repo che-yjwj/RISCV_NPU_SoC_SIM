@@ -1,5 +1,9 @@
 # 연산 엔진 명세 (Compute Engines Specification)
 
+> 메인 스펙으로 승격됨: [tile_semantics_spec.md](../../../spec/architecture/tile_semantics_spec.md)  
+> STB 채택 RFC: [stb_adoption_rfc.md](../../../spec/architecture/stb_adoption_rfc.md)  
+> 본 문서는 tile_based 트랙에서의 확장/예시를 포함하며, 규범은 메인 스펙을 단일 소스 오브 트루스로 한다.
+
 ## 1. 문서 목적
 
 본 문서는 타일 기반 NPU 아키텍처에서 사용되는 **연산 엔진(Compute Engine)** 의
@@ -10,6 +14,14 @@
 
 본 명세의 목적은 Tensor Engine과 Vector Engine의 역할 혼합을 방지하고,
 타일 기반 데이터 흐름이 붕괴되지 않도록 설계를 고정하는 데 있다.
+
+---
+
+### 관련 문서
+- 데이터플로우: `dataflow_te_ve.md`
+- 라이프사이클: `tile_lifecycle.md`
+- 타일 계약: `../contracts/tile_contract.md`
+- 스케줄링: `../scheduling/static_scheduler_spec.md`
 
 ---
 
@@ -57,7 +69,8 @@ Tensor Engine의 연산 결과는 **타일 단위로 생성**된다.
   - 글로벌 SRAM에 상주하는 타일
 - 출력:
   - 글로벌 SRAM에 기록된 타일
-  - 또는 Shared Tile Buffer를 통한 타일 handoff
+  - 타일 디스크립터를 Shared Tile Buffer로 handoff
+    (payload는 항상 글로벌 SRAM에 남는다)
 
 Tensor Engine은 DRAM에 직접 접근하지 않는다.
 
@@ -144,6 +157,10 @@ Tensor Engine과 Vector Engine은 다음 원칙에 따라 분리된다.
   반드시 Shared Tile Buffer를 통해 이루어진다
 - 전달 대상은 타일 디스크립터이다
 - 타일 데이터는 항상 글로벌 SRAM에 존재한다
+- TE가 생성한 타일은 **최소 한 번** STB handoff를 거쳐 VE에 전달되어야 한다
+- VE 내부의 추가 후처리 단계에서 동일 타일을 재사용할 때는
+  타일 라이프사이클 명세에 따라 STB 재경유 없이
+  글로벌 SRAM에서 직접 읽는 것이 허용된다
 
 엔진 간 직접 메모리 소유권 이전은 허용되지 않는다.
 

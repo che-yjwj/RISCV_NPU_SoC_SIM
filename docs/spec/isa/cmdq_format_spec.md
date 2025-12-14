@@ -64,6 +64,26 @@ CMDQ(Command Queue)는 NPU가 실행할 명령들의 정적 시퀀스이다.
 Control FSM은 **명령의 순서 보장**을 담당하고,  
 TE/VE/DMA 개별 엔진은 내부 queue/timing 모델에 의해 병렬 실행된다.
 
+### 3.3 결정론적 경합(필수)과 Engine ID 규칙
+
+본 레포의 cycle-based 시뮬레이션은 **동일 입력이면 동일 결과**가 나와야 한다.
+따라서 버스/NoC/SPM 경합의 tie-break 및 요청 처리 순서를 위해
+CMDQ 엔트리는 엔진 인스턴스 ID를 명시해야 한다.
+
+- DMA 엔트리: `dma_id` (0..N_dma-1)
+- TE 엔트리: `te_id` (0..N_te-1)
+- VE 엔트리: `ve_id` (0..N_ve-1)
+
+여기서 `N_dma`, `N_te`, `N_ve`는 CMDQ 파일 내부에서 자동 추론하지 않으며,
+시뮬레이터의 하드웨어/config 프로파일로 주어진다.
+
+- (권고) Trace의 `config_snapshot.npu.num_dma|num_te|num_ve`에 기록한다 (`docs/spec/trace/trace_format_spec.md`).
+
+이 ID들은 다음 스펙에서 정의한 결정론적 정렬/중재 규칙의 입력으로 사용된다.
+
+- Bus/NoC: `docs/spec/timing/bus_and_noc_model.md`
+- SPM: `docs/spec/timing/spm_model_spec.md`
+
 ---
 
 ## 4. 전체 구조 (Top-Level Structure)
@@ -92,7 +112,7 @@ CMDQ는 엔트리 리스트로 구성된다.
 ```json
 {
   "cmdq": [
-    {"opcode": "DMA_LOAD_TILE", "id": 0, "layer_id": "gemm0", "deps_before": []},
+    {"opcode": "DMA_LOAD_TILE", "id": 0, "layer_id": "gemm0", "dma_id": 0, "deps_before": []},
     {"opcode": "TE_GEMM_TILE", "id": 1, "layer_id": "gemm0", "deps_before": [0]},
     {"opcode": "END", "id": 2, "layer_id": null, "deps_before": [1]}
   ],
@@ -155,7 +175,7 @@ CMDQ는 엔트리 리스트로 구성된다.
 | `deps_after` | 필요 시 | 옵션 | backward dependency 표기, 없는 경우 `[]` |
 | `debug` | 모든 엔트리 | 옵션 | 코멘트/소스 추적용 |
 | `tensor_role`, `qbits` | DMA 계열 | 필수 | role=`weight|activation|kv|aux` |
-| `dram_addr`, `spm_bank`, `spm_offset`, `num_elements` | DMA 계열 | 필수 | 주소·용량 정보 |
+| `dma_id`, `dram_addr`, `spm_bank`, `spm_offset`, `num_elements` | DMA 계열 | 필수 | DMA 채널/엔진 ID 및 주소·용량 정보 |
 | `te_id`, `ifm_bank`, `wgt_bank`, `ofm_bank`, `m/n/k` | TE 계열 | 필수 | 연산 파라미터 |
 | `ve_id`, `in_bank`, `out_bank`, `length` | VE 계열 | 필수 | 벡터 처리 정보 |
 | `reserved_*` | 확장용 | 예약 | 새 필드 추가 시 `reserved_foo` prefix 사용, 기본 `null` |
@@ -185,6 +205,7 @@ DRAM → SPM로 데이터 타일을 로드한다.
   "opcode": "DMA_LOAD_TILE",
   "id": 0,
   "layer_id": "attn_q",
+  "dma_id": 0,
   "tensor_role": "weight",
   "qbits": 4,
   "dram_addr": 123456,
@@ -206,6 +227,7 @@ SPM → DRAM로 데이터 타일을 저장한다.
   "opcode": "DMA_STORE_TILE",
   "id": 1,
   "layer_id": "attn_q",
+  "dma_id": 0,
   "tensor_role": "activation",
   "qbits": 8,
   "dram_addr": 654321,
@@ -222,6 +244,7 @@ SPM → DRAM로 데이터 타일을 저장한다.
 
 | 필드명        | 타입     | 설명                                                         |
 |--------------|----------|--------------------------------------------------------------|
+| `dma_id`     | int      | 사용할 DMA 엔진/채널 인덱스 (0..N_dma-1). 단일 DMA면 0 고정 |
 | `tensor_role`| string   | `"weight"`, `"activation"`, `"kv"`                           |
 | `qbits`      | int      | 해당 타일의 bitwidth (예: 4, 8)                              |
 | `dram_addr`  | int      | DRAM 기준 주소(바이트 단위)                                  |
@@ -430,6 +453,7 @@ KV Cache를 DRAM에서 SPM으로 로드.
   "opcode": "DMA_LOAD_TILE",
   "id": 40,
   "layer_id": "attn_block_3",
+  "dma_id": 0,
   "tensor_role": "kv",
   "qbits": 4,
   "dram_addr": 900000,
@@ -453,6 +477,7 @@ KV Cache는 `tensor_role = "kv"` + `qbits_kv` 로 구분된다.
 - `opcode`: enum of 지원 opcode 문자열  
 - `id`: non-negative integer (0-based)  
 - `deps_before` / `deps_after`: integer 배열, 각 값은 유효한 CMDQ id  
+- `dma_id`: [0, N_dma-1] 범위 (단일 DMA면 0 고정)
 - `te_id` / `ve_id`: [0, N_te-1], [0, N_ve-1] 범위  
 - `qbits`, `qbits_weight`, `qbits_activation`: `{2, 4, 8, 16, 32}` 등 제한된 set  
 - 주소/offset/num_elements는 모두 non-negative integer  
@@ -502,6 +527,7 @@ Control FSM 관점에서 CMDQ 엔트리 하나의 처리 흐름은 다음과 같
       "opcode": "DMA_LOAD_TILE",
       "id": 0,
       "layer_id": "ffn_2",
+      "dma_id": 0,
       "tensor_role": "activation",
       "qbits": 8,
       "dram_addr": 100000,
@@ -515,6 +541,7 @@ Control FSM 관점에서 CMDQ 엔트리 하나의 처리 흐름은 다음과 같
       "opcode": "DMA_LOAD_TILE",
       "id": 1,
       "layer_id": "ffn_2",
+      "dma_id": 0,
       "tensor_role": "weight",
       "qbits": 4,
       "dram_addr": 200000,
@@ -562,6 +589,7 @@ Control FSM 관점에서 CMDQ 엔트리 하나의 처리 흐름은 다음과 같
       "opcode": "DMA_STORE_TILE",
       "id": 4,
       "layer_id": "ffn_2",
+      "dma_id": 0,
       "tensor_role": "activation",
       "qbits": 8,
       "dram_addr": 300000,

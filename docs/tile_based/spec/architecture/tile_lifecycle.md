@@ -1,5 +1,9 @@
 # 타일 라이프사이클 명세 (Tile Lifecycle Specification)
 
+> 메인 스펙으로 승격됨: [tile_semantics_spec.md](../../../spec/architecture/tile_semantics_spec.md)  
+> STB 채택 RFC: [stb_adoption_rfc.md](../../../spec/architecture/stb_adoption_rfc.md)  
+> 본 문서는 tile_based 트랙에서의 확장/예시를 포함하며, 규범은 메인 스펙을 단일 소스 오브 트루스로 한다.
+
 ## 1. 문서 목적
 
 본 문서는 타일 기반 NPU 아키텍처에서 **타일(tile)** 이 생성되어 사용되고 소멸되기까지의
@@ -14,7 +18,16 @@
 
 ---
 
+### 관련 문서
+- 메모리 계층: `memory_hierarchy.md`
+- 데이터플로우/엔진: `dataflow_te_ve.md`, `compute_engines.md`
+- 타일 계약: `../contracts/tile_contract.md`
+- 스케줄링/해제 정책: `../scheduling/static_scheduler_spec.md`
+
+---
+
 ### 타일 라이프사이클 관점 다이어그램
+```text
 Time ─────────────────────────────────────────────────────▶
 
 [Allocate]
@@ -35,6 +48,7 @@ Time ─────────────────────────
    │
    ▼
 [ Freed from Global SRAM ]
+```
 
 ## 2. 타일의 정의
 
@@ -136,6 +150,11 @@ STB는 메모리가 아니라 **엔진 간 파이프라인 경계(pipeline bound
 STB에서의 T 참조 수명 < 글로벌 SRAM에서의 T 수명
 
 이 규칙을 위반하는 동작은 아키텍처적으로 불법이다.
+
+TE가 생산한 타일을 VE가 최초로 소비할 때는
+**한 번 이상 STB handoff가 수행**되어야 한다.
+동일 타일을 VE 내부에서 반복 소비할 때는
+STB 재경유 없이 글로벌 SRAM에서 직접 재사용할 수 있다.
 
 ---
 
