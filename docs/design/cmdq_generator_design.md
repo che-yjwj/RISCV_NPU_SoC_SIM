@@ -14,6 +14,9 @@ CmdqGenerator는 StaticScheduler와 SPMAllocator의 결과를 사용해 **CMDQ J
 관련 스펙:
 - `docs/spec/isa/cmdq_overview.md`
 - `docs/spec/isa/cmdq_format_spec.md`
+ - `docs/spec/isa/opcode_set_definition.md`
+ - `docs/spec/scheduling/static_scheduler_semantics_spec.md`
+ - 결정론적 실행/경합: `docs/design/cycle_loop_design.md`, `docs/spec/timing/*.md`
  - 파이프라인 맵: `docs/README_SPEC.md` #5
 
 ## 2. 책임
@@ -125,3 +128,38 @@ CmdqGenerator 결과 (요약):
 ## 7. 향후 확장
 - binary CMDQ 포맷 생성 (JSON→binary encoder).
 - CMDQ 최적화(pass) 훅 (엔트리 merge, reorder 등) 추가.
+
+---
+
+## 8. Address Resolution (DRAM/SPM 주소 결정)
+
+CmdqGenerator는 CMDQ entry에 **구체적인 주소/오프셋**을 채워야 한다.
+
+- SPM 주소: `spm_bank`, `spm_offset`은 SPMAllocator 결과를 그대로 반영한다.
+- DRAM 주소: `dram_addr`는 텐서 베이스 주소 + 타일 오프셋으로 결정된다.
+
+기본 모델(affine):
+
+```text
+dram_addr = tensor_base_addr + tile_byte_offset
+tile_byte_offset = f(tile_coords, tensor_shape, layout, qbits, alignment)
+```
+
+주의:
+- “주소 식”이 런타임에 결정되는 간접(indirect) 주소는 기본 경로에서 지원하지 않는다.
+  - 필요한 경우, (1) IR 단계에서 주소를 명시적 DMA 엔트리로 풀어내거나, (2) 별도의 런타임 주소 해석 계층을 추가해야 한다.
+
+---
+
+## 9. Synchronization & Barrier Mapping
+
+CMDQ의 기본 동기화 수단은 `deps_before`(선행 완료 조건)이다.
+
+- StaticScheduler가 생성한 `deps_before`는 CmdqGenerator에서 **CMDQ index 기반 deps 배열**로 보존된다.
+- 고수준 동기화(예: global barrier)가 필요한 경우, CMDQ의 `BARRIER` opcode를 사용할 수 있다.
+  - 관련 스펙: `docs/spec/isa/cmdq_format_spec.md`
+
+Tile IR(옵션) 또는 상위 표현에서의 wait/fence는 아래 방식 중 하나로 내려올 수 있다.
+
+- 권장: wait를 선행 작업들에 대한 `deps_before`로 풀어 CMDQ에 표현
+- 선택: `BARRIER` 엔트리 삽입(하드웨어/시뮬레이터가 “이전 엔트리 모두 완료” 의미로 해석)

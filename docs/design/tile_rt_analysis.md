@@ -1,7 +1,17 @@
-# TileRT 심층 분석 및 NPU 시뮬레이터 연계 설계 문서
+# TileRT Analysis (Reference, Research Track)
 
-## 1. 문서 목적
-본 문서는 TileRT(Tile-based Runtime)의 개념, 설계 철학, 내부 구조를 정리하고, 이를 **RISC-V 기반 NPU 시뮬레이터 및 NPU-IR 설계**에 어떻게 흡수·확장할 수 있는지를 체계적으로 문서화한다. 본 문서는 연구/아키텍처/시뮬레이터 설계 관점에서 작성되었으며, 실행 가능한 스펙(Executable Spec)으로의 확장을 염두에 둔다.
+**Path:** `docs/design/tile_rt_analysis.md`  
+**Status:** Reference  
+<!-- status: reference -->
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-15
+
+본 문서는 TileRT(Tile-based Runtime)의 개념/철학을 요약하고,
+이를 **타일 기반 시뮬레이터(결정론적 global-cycle + TE/VE 결정론적 compute)** 설계에
+어떻게 흡수할 수 있는지에 대한 참고(Reference) 정리이다.
+
+주의:
+- 메인 스펙(SSoT)은 `docs/spec/*`이며, 본 문서는 규범을 고정하지 않는다.
 
 ---
 
@@ -211,4 +221,3 @@ TileRT의 답은 명확하다.
 TileRT는 LLM 추론을 **연산 중심 실행 모델에서 지연 최소화 DAG 스케줄링 문제로 재정의**한 접근이며, NPU 시뮬레이터 및 NPU-IR과 결합할 때 그 가치가 극대화된다.
 
 본 문서는 TileRT를 연구 및 시스템 설계에 흡수하기 위한 기준 문서로 활용될 수 있다.
-
