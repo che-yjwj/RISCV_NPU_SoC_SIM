@@ -4,7 +4,7 @@
 **Status:** Stable Draft  
 <!-- status: draft -->
 **Owner:** Core Maintainers  
-**Last Updated:** 2025-12-14
+**Last Updated:** 2025-12-15
 
 ## 1. 목적
 
@@ -18,6 +18,9 @@
 
 관련 RFC:
 - STB 채택 범위: `stb_adoption_rfc.md`
+관련 스펙:
+- KV cache 의미론(LLM): `kv_cache_semantics_spec.md`
+- HW–SW 경계 계약: `tile_contract_spec.md`
 
 ## 2. 용어
 
@@ -29,7 +32,7 @@
 - **VE**: Vector Engine(후처리/정규화/reduction 중심)
 
 주의:
-- 메인 스펙에서 SPM은 `docs/tile_based/`에서 “Global SRAM/SPM”으로 불리는 개념과 동일 계층으로 취급한다.
+- 메인 스펙에서 SPM은 일부 문서에서 “Global SRAM”으로도 불릴 수 있으며, 동일 계층으로 취급한다.
 
 ## 3. 메모리 계층 책임
 
@@ -67,6 +70,14 @@ SPM은 캐시가 아니며 자동 eviction/일관성/coherence를 제공하지 �
 Allocated → Produced → Handed-off → Consumed → (Reused | Freed)
 ```
 
+시간 관점 요약:
+
+```text
+Time ─────────────────────────────────────────────────────▶
+
+[Allocate] → [Produced in SPM] → [Descriptor handoff(STB)] → [Consumed] → [Freed]
+```
+
 불변 규칙:
 
 1) **할당 전 소비 금지**: Allocated 이전에 어떤 엔진도 타일을 소비할 수 없다.  
@@ -76,6 +87,37 @@ Allocated → Produced → Handed-off → Consumed → (Reused | Freed)
 5) **명시적 해제**: 타일 해제는 스케줄러 관점에서 결정적이고 관측 가능해야 한다.
 
 ## 5. TE–VE 데이터플로우 의미론(STB semantics)
+
+### 5.0 구조 다이어그램(요약)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                          DRAM                               │
+│                  (입력 / 최종 출력 / KV cache)               │
+└───────────────▲───────────────────────────────▲────────────┘
+                │ DMA                             │ DMA
+                │                                 │
+┌───────────────┴─────────────────────────────────┴────────────┐
+│                        SPM (Scratchpad)                       │
+│                                                                │
+│  - tile payload의 유일한 공유 저장소                            │
+│  - 타일 라이프사이클의 기준점(anchor)                           │
+│                                                                │
+└───────────────▲───────────────────────────────▲────────────┘
+                │                               │
+        Load/Store (MM)                 Load/Store (MM)
+                │                               │
+        ┌───────┴───────┐               ┌───────┴───────┐
+        │  Tensor Engine │               │  Vector Engine│
+        │      (TE)      │               │      (VE)     │
+        └───────┬───────┘               └───────┬───────┘
+                │   Tile Descriptor (handoff)    │
+                ▼                                │
+        ┌────────────────────────────────────────┘
+        │        STB semantics boundary
+        │      (descriptor only, no payload)
+        └────────────────────────────────────────
+```
 
 ### 5.1 payload vs descriptor 분리
 
@@ -97,6 +139,12 @@ TE→VE 최초 소비는 **최소 1회 handoff 경계(STB semantics)** 를 거�
 소비자(VE)가 준비되지 않은 경우, handoff 경계에서 역압이 발생할 수 있다.
 이 역압은 DRAM으로 전파되는 것이 아니라, 엔진 간 경계에서 국소적으로 모델링되어야 한다.
 
+### 5.4 TE/VE 역할 경계(요약)
+
+- TE: GEMM/MAC 중심의 2D 고밀도 연산, tile 생산자(producer) 성격이 강함
+- VE: softmax/LN/reduction/activation 등 후처리 중심, tile 소비자(consumer) 성격이 강함
+- 금지: TE에서 reduction 중심 연산을 수행하거나 VE에서 대규모 GEMM을 수행하는 구조(역할 혼합)
+
 ## 6. 금지 패턴(요약)
 
 - DRAM을 엔진 간 중간 결과 전달 경로로 사용
@@ -113,12 +161,8 @@ TE→VE 최초 소비는 **최소 1회 handoff 경계(STB semantics)** 를 거�
   - 랜덤/RNG/seed 기반 중재 금지
   - arbitration 및 tie-break 규칙은 `docs/spec/timing/bus_and_noc_model.md`, `docs/spec/timing/spm_model_spec.md`에 의해 고정
 
-## 8. 관련 문서(참고 트랙)
+## 8. 관련 문서(참고)
 
-아래 문서는 본 스펙의 확장/예시/실험 트랙이다.
-
-- tile_based 아키텍처 확장:  
-  - `docs/tile_based/spec/architecture/tile_lifecycle.md`  
-  - `docs/tile_based/spec/architecture/memory_hierarchy.md`  
-  - `docs/tile_based/spec/architecture/dataflow_te_ve.md`  
-  - `docs/tile_based/spec/architecture/compute_engines.md`
+- 메모리/NoC 요약: `docs/overview/memory_noc_overview.md`
+- 스케줄링 의미론: `docs/spec/scheduling/static_scheduler_semantics_spec.md`
+- Prefill/Decode 매핑 의미론: `docs/spec/scheduling/prefill_decode_workload_semantics_spec.md`

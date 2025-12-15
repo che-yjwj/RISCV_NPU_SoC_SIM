@@ -62,7 +62,7 @@ Mixed precision, tile, SPM allocation, TE/VE scheduling, KV cache, memory bandwi
 ### 2.1 Compute 중심 요약
 
 - 주요 경로: ONNX → IR Builder → Tiling Planner → Static Scheduler → CMDQ Generator → NPU Simulator Core(Control FSM + TE/VE).
-- 관련 문서: `docs/spec/architecture/tile_semantics_spec.md`, `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md`, `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/design/tiling_planner_design.md`, `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md`, `docs/design/npu_simulator_core_design.md`, `docs/design/te_engine_design.md`, `docs/design/ve_engine_design.md`.
+- 관련 문서: `docs/spec/architecture/tile_semantics_spec.md`, `docs/spec/architecture/tile_contract_spec.md`, `docs/spec/scheduling/static_scheduler_semantics_spec.md`, `docs/spec/ir/npu_ir_spec.md`, `docs/spec/ir/tensor_metadata_spec.md`, `docs/spec/isa/cmdq_overview.md`, `docs/spec/isa/cmdq_format_spec.md`, `docs/design/tiling_planner_design.md`, `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md`, `docs/design/npu_simulator_core_design.md`, `docs/design/te_engine_design.md`, `docs/design/ve_engine_design.md`.
 - 메모리/NoC 관점은 `docs/overview/memory_noc_overview.md`, 개발 흐름 관점은 `docs/overview/sdd_devflow_overview.md`를 참고한다.
 
 ## 3. 단계별 Dataflow 상세
@@ -207,6 +207,7 @@ e4: DMA_STORE_TILE (ofm, tile0)   deps=[e3]
 ### 4.3 KV Cache
 
 - KV Cache는 activation/bitwidth가 다르고 DRAM residency가 있으며 append/concat 형태로 seq가 증가한다.
+- 관련 의미론 스펙: `docs/spec/architecture/kv_cache_semantics_spec.md`
 - KV Cache tile 시나리오 예시
 
 ```text
@@ -217,6 +218,11 @@ DMA_STORE_TILE (new K/V)
 ```
 
 - 위 흐름은 CMDQ에 명확하게 표현된다.
+
+### 4.4 Prefill vs Decode (Workload Mapping)
+
+- Prefill은 throughput 중심(대규모 S×S attention), Decode는 latency 중심(1×T attention + KV load 지배)이다.
+- Prefill/Decode의 “허용/금지” 매핑 규칙: `docs/spec/scheduling/prefill_decode_workload_semantics_spec.md`
 
 ## 5. Dataflow Summary Diagram (Text-based)
 

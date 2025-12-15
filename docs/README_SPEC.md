@@ -28,7 +28,12 @@
 | --- | --- | --- | --- |
 | `docs/overview/system_architecture.md` | 필수 | README.md | 전체 아키텍처 기준선 |
 | `docs/spec/architecture/tile_semantics_spec.md` | 권장 | overview/system_architecture.md, overview/memory_noc_overview.md | 타일 라이프사이클/메모리/엔진 데이터플로우 최소 의미론 |
+| `docs/spec/architecture/kv_cache_semantics_spec.md` | 권장 | spec/architecture/tile_semantics_spec.md, overview/dataflow_overview.md | LLM KV cache의 타일링/상주/재사용 의미론 |
+| `docs/spec/architecture/tile_contract_spec.md` | 권장 | spec/architecture/tile_semantics_spec.md | HW–SW 경계 계약(원자성/메모리 경계/결정론 요구사항) |
+| `docs/spec/scheduling/static_scheduler_semantics_spec.md` | 권장 | spec/architecture/tile_contract_spec.md, spec/ir/npu_ir_spec.md | 정적 스케줄의 의존성/ID/결정론 의미론 |
+| `docs/spec/scheduling/prefill_decode_workload_semantics_spec.md` | 권장 | overview/dataflow_overview.md, spec/architecture/kv_cache_semantics_spec.md | LLM Prefill/Decode 워크로드 매핑의 최소 의미론 |
 | `docs/spec/ir/npu_ir_spec.md` | 필수 | overview/system_architecture.md, overview/dataflow_overview.md | 모든 컴파일러/시뮬레이터 단계가 참조 |
+| `docs/spec/ir/tile_ir_optional_spec.md` | 참고 | spec/ir/npu_ir_spec.md | TileGraph 이후 단계에서의 선택적 Tile IR(TDG/TileDesc) 표현 |
 | `docs/spec/ir/quantization_ir_extension.md` | 권장 | spec/ir/npu_ir_spec.md | IR 확장 규칙이 IR 스펙을 상속 |
 | `docs/spec/isa/cmdq_format_spec.md` | 필수 | spec/ir/npu_ir_spec.md, spec/isa/cmdq_overview.md | IR → CMDQ 변환 및 시뮬레이터가 의존 |
 | `docs/design/static_scheduler_design.md` | 참고 | spec/ir/*.md, spec/isa/*.md | 스케줄러 설계는 IR/CMDQ 정의 후 검토 |
@@ -53,10 +58,17 @@ docs/
 │   ├── architecture/
 │   │   ├── README.md
 │   │   ├── stb_adoption_rfc.md
-│   │   └── tile_semantics_spec.md
+│   │   ├── tile_semantics_spec.md
+│   │   ├── kv_cache_semantics_spec.md
+│   │   └── tile_contract_spec.md
+│   ├── scheduling/
+│   │   ├── README.md
+│   │   ├── static_scheduler_semantics_spec.md
+│   │   └── prefill_decode_workload_semantics_spec.md
 │   ├── ir/
 │   │   ├── npu_ir_spec.md
 │   │   ├── quantization_ir_extension.md
+│   │   ├── tile_ir_optional_spec.md
 │   │   └── tensor_metadata_spec.md
 │   │
 │   ├── isa/
@@ -118,6 +130,19 @@ docs/
 
 ---
 
+## 1.1 tile_based 통합 기록(Reference)
+
+`docs/tile_based/`는 타일 기반 접근을 정리/실험하던 문서 트랙이며, 현재는 메인 문서 트리에 흡수 통합되었고 트리 자체는 제거되었다.
+
+- 진행/현황: `docs/process/tile_based_integration_mapping.md`
+- 원칙: 규범(SSoT)은 `docs/spec/*`
+
+메인으로 승격된 핵심 진입점(요약):
+- 아키텍처 의미론: `docs/spec/architecture/tile_semantics_spec.md`, `docs/spec/architecture/kv_cache_semantics_spec.md`, `docs/spec/architecture/tile_contract_spec.md`
+- 스케줄링 의미론: `docs/spec/scheduling/static_scheduler_semantics_spec.md`, `docs/spec/scheduling/prefill_decode_workload_semantics_spec.md`
+- 선택적 Tile IR: `docs/spec/ir/tile_ir_optional_spec.md`
+- 참고(Design): `docs/design/tile_rt_analysis.md`, `docs/design/npu_ir_core_reference.md`
+
 # 2. 상위 문서 설명 (TOC)
 
 ## 2.1 Overview
@@ -143,12 +168,15 @@ Spec Driven Development의 중심.
 ### 2.2.0 Architecture Semantics 스펙
 
 - **tile_semantics_spec.md** *(권장)* — Tile 라이프사이클/메모리 계층/TE–VE 데이터플로우 최소 불변 규칙
+- **kv_cache_semantics_spec.md** *(권장)* — LLM KV cache 타일링/상주/재사용 의미론(Decode streaming)
+- **tile_contract_spec.md** *(권장)* — HW–SW 경계 계약(원자성/메모리 경계/결정론 요구사항)
 - **stb_adoption_rfc.md** *(참고)* — STB(Shared Tile Buffer) 의미론/채택 범위 결정(RFC)
 
 ### 2.2.1 IR 스펙
 
 - **npu_ir_spec.md** *(필수)* — 내부 IR 구조, 노드, 텐서, 엣지 정의
 - **quantization_ir_extension.md** *(권장)* — 레이어별 W/A/KV bitwidth 표현 방식
+- **tile_ir_optional_spec.md** *(참고)* — TileGraph 이후 단계의 선택적 Tile IR(TDG/TileDesc) 표현
 - **tensor_metadata_spec.md** *(권장)* — shape, dtype, qbits, layout 정보
 
 ### 2.2.2 ISA / CMDQ 스펙
@@ -178,6 +206,11 @@ Spec Driven Development의 중심.
 - **gantt_timeline_spec.md** *(참고)* — TE/VE/DMA timeline 포맷
 - **bandwidth_heatmap_spec.md** *(참고)* — BW 모니터링 포맷
 - **visualization_requirements.md** *(참고)* — 시각적 요구사항 및 export 포맷
+
+### 2.2.6 Scheduling 스펙
+
+- **static_scheduler_semantics_spec.md** *(권장)* — 정적 스케줄의 의존성/ID/결정론 의미론
+- **prefill_decode_workload_semantics_spec.md** *(권장)* — LLM Prefill/Decode 워크로드 매핑의 최소 의미론
 
 ---
 

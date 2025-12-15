@@ -1,16 +1,21 @@
-# NPU-IR Core Specification (TOG-Compatible)
-## npu_ir_core_spec.md
+# NPU-IR Core Reference (TOG-Compatible, Non-SSoT)
 
-Author ChatGPT (for 창훈)
-Reference PyTorchSim TOG (PSAL-POSTECH)
-Target Static-scheduled Mobile  Edge NPU Simulator & Compiler
+**Path:** `docs/design/npu_ir_core_reference.md`  
+**Status:** Reference  
+<!-- status: reference -->
+**Owner:** Core Maintainers  
+**Last Updated:** 2025-12-15
+
+본 문서는 PyTorchSim TOG(Tile Operation Graph) 계열의 IR 개념을 이 코드베이스 관점에서 정리한 **참고(Reference)** 문서이다.
+
+- 메인 IR의 단일 소스 오브 트루스(SSoT): `docs/spec/ir/npu_ir_spec.md`
+- TileGraph 이후 선택적 IR(옵션): `docs/spec/ir/tile_ir_optional_spec.md`
 
 ---
 
 ## 0. Scope & Positioning
 
-본 문서는 PyTorchSim TOG(Tile Operation Graph)를
-정적 스케줄링 기반 모바일 NPU에 맞게 재정의한 NPU-IR의 코어 스펙이다.
+본 문서는 PyTorchSim TOG(Tile Operation Graph)를 정적 스케줄링 기반 NPU에 맞게 재정의한 “NPU-IR(코어)”의 개념적 골격을 정리한다.
 
 이 IR은 다음을 동시에 만족한다.
 
@@ -19,8 +24,10 @@ Target Static-scheduled Mobile  Edge NPU Simulator & Compiler
 - 컴파일러  시뮬레이터  CMDQ 백엔드의 공통 계약(Contract)
 
 관련 문서:
-- Tile IR(TDG/TileDesc/Tile ops): `tile_ir_spec.md`
-- 로어링/실행 의미론(TLS/Global-cycle): `npu_ir_lowering_and_execution.md`
+- Tile IR(TDG/TileDesc/Tile ops, 메인 optional): `docs/spec/ir/tile_ir_optional_spec.md`
+- 로어링/경계(Design): `docs/design/static_scheduler_design.md`, `docs/design/cmdq_generator_design.md`
+- 실행 timebase/결정론(Design): `docs/design/cycle_loop_design.md`
+- CMDQ/Barrier 의미론(Spec): `docs/spec/isa/cmdq_format_spec.md`
 
 ---
 

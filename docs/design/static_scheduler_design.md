@@ -12,6 +12,9 @@ StaticScheduler는 TileGraph + SPM allocation + 엔진 구성 정보를 기반�
 결과는 CMDQGenerator가 바로 사용할 수 있는 스케줄 DAG 형태가 된다.
 
 관련 스펙:
+- `docs/spec/scheduling/static_scheduler_semantics_spec.md`
+- `docs/spec/architecture/tile_semantics_spec.md`
+- `docs/spec/architecture/tile_contract_spec.md`
 - `docs/spec/ir/npu_ir_spec.md`
 - `docs/spec/isa/cmdq_overview.md`
 - `docs/overview/dataflow_overview.md`
@@ -139,3 +142,32 @@ while not ready_queue.empty():
 ## 7. 향후 확장
 - critical path 기반 우선순위 스케줄링.
 - 메모리/대역폭 aware 스케줄링 (DMA latency와 TE/VE 우선순위 조정).
+
+---
+
+## 8. Lowering Boundary (Schedule → CMDQ)
+
+StaticScheduler의 출력은 CmdqGenerator가 **의미 손실 없이** CMDQ로 변환할 수 있어야 한다.
+
+최소 요구사항:
+- 각 ScheduleEntry는 `engine_type`과 `*_id`가 결정되어야 한다.
+- `deps_before`는 TileGraph 의존성을 보존해야 하며, 선행 작업 완료 전 issue가 불가능해야 한다.
+- 결정론: 동일 입력이면 동일한 엔진 배정/엔트리 순서가 생성되어야 한다.
+
+동기화:
+- 기본은 `deps_before`로 표현한다.
+- 고수준 global sync가 필요한 경우에만 `BARRIER`(SYNC opcode)를 사용할 수 있다.
+  - CMDQ 의미론: `docs/spec/isa/cmdq_format_spec.md`
+
+---
+
+## 9. (옵션) Static Partitioning (Parallel loop → worker)
+
+워크로드에 “병렬 루프(예: head/group/sequence tile 반복)”가 있는 경우,
+오프라인 단계에서 iteration을 worker(예: 코어/클러스터/엔진 그룹)에 **정적으로 분배**할 수 있다.
+
+대표 정책 예시:
+- Contiguous partition: 연속 구간을 분배(주소 locality 유리)
+- Block-cyclic partition: round-robin 분배(load imbalance 완화)
+
+이 정책은 성능/프로파일링의 영역이며, 본 설계 문서는 “가능한 형태”만 요약한다.
